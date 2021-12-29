@@ -7,7 +7,7 @@ interests: []
 social:
   - icon: github
     icon_pack: fab
-    link: https://github.com/gcushen
+    link: https://github.com/4n0nym4u5
   - icon: font-awesome-flag
     icon_pack: fas
     link: https://pwnable.tw/user/17704
@@ -16,9 +16,7 @@ social:
     link: https://ctftime.org/user/77917
     icon_pack: ai
     icon: font-awesome
-organizations:
-  - name: Stanford University
-    url: https://www.stanford.edu/
+organizations: []
 education:
   courses:
     - course: SSLC Xth Boards, 2019
