@@ -34,11 +34,13 @@ highlight_name: true
 
 I’m **Arjun** better known as **4n0nym4u5**.
 
- I’m a student of **Computer Science & Engineering** at [](https://bitmesra.ac.in/)Sri Jayachamarajendra Polytechnic College.
+**Who am I?** I’m a student of **Computer Science & Engineering** at [](https://bitmesra.ac.in/)Sri Jayachamarajendra Polytechnic College.
 
 <!--StartFragment-->
 
-I’m a CTF player at team [zh3r0](https://www.zh3r0.com/). My main focus is on Binary Exploitation
+**What do i do?**
+
+I’m very much interested in binary exploitation (Pwn). I play [CTF’s](https://ctftime.org/about) with [zh3r0](https://www.zh3r0.com/)
 
 <!--EndFragment-->
 
