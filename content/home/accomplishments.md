@@ -1,5 +1,5 @@
 ---
-widget: Recent Posts
+widget: junk
 date_format: Jan 2006
 item:
   - certificate_url: https://www.coursera.org
@@ -26,10 +26,10 @@ item:
     organization_url: https://www.datacamp.com
     title: Object-Oriented Programming in R
     url: ""
-widget_id: Recent Posts
+widget_id: junk
 headless: true
 weight: 50
-title: Recent Posts
+title: junk
 subtitle: null
 design:
   columns: "2"
