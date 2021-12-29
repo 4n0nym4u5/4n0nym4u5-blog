@@ -21,17 +21,15 @@ organizations:
     url: https://www.stanford.edu/
 education:
   courses:
-    - course: PhD in Artificial Intelligence
-      institution: Stanford University
-      year: 2012
-    - course: MEng in Artificial Intelligence
-      institution: Massachusetts Institute of Technology
-      year: 2009
-    - course: BSc in Artificial Intelligence
-      institution: Massachusetts Institute of Technology
-      year: 2008
-email: ""
+    - course: SSLC Xth Boards, 2019
+      institution: My Saviour Ministries
+      year: 2015
+    - course: Diploma in Computer Science & Engineering
+      institution: Sri Jayachamarajendra Polytechnic College
+      year: 2019
+email: arjun1gu@gmail.com
 superuser: true
+user_groups: []
 highlight_name: true
 ---
 <!--StartFragment-->
