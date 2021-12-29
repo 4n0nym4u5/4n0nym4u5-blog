@@ -14,7 +14,7 @@ social:
   - display:
       header: false
     link: https://ctftime.org/user/77917
-    icon_pack: fab
+    icon_pack: far
     icon: flag
 organizations: []
 education:
