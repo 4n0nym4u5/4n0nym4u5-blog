@@ -38,9 +38,7 @@ I’m **Arjun** better known as **4n0nym4u5**.
 
 <!--StartFragment-->
 
-**What do i do?**
-
-I’m very much interested in binary exploitation (Pwn). I play [CTF’s](https://ctftime.org/about) with [zh3r0](https://www.zh3r0.com/)
+**What do i do?** I’m very much interested in binary exploitation (Pwn). I play [CTF’s](https://ctftime.org/about) with [zh3r0](https://www.zh3r0.com/)
 
 <!--EndFragment-->
 
