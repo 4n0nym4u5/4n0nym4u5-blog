@@ -8,7 +8,7 @@ social:
   - icon: github
     icon_pack: fab
     link: https://github.com/4n0nym4u5
-  - icon: bug
+  - icon: product-hunt
     icon_pack: fab
     link: https://pwnable.tw/user/17704
   - display:
