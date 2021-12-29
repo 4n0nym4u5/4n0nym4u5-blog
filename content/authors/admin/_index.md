@@ -8,14 +8,14 @@ social:
   - icon: github
     icon_pack: fab
     link: https://github.com/4n0nym4u5
-  - icon: font-awesome-flag
-    icon_pack: fas
+  - icon: bug
+    icon_pack: far
     link: https://pwnable.tw/user/17704
   - display:
       header: false
     link: https://ctftime.org/user/77917
-    icon_pack: ai
-    icon: font-awesome
+    icon_pack: far
+    icon: flag
 organizations: []
 education:
   courses:
