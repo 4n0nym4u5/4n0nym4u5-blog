@@ -9,6 +9,7 @@ image:
   filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
   focal_point: Smart
   preview_only: true
+  alt_text: 0ctf desc
 ---
 # 0ctf 2021
 
