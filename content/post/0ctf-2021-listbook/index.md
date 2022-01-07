@@ -2,9 +2,11 @@
 title: 0ctf 2021 listbook
 date: 2022-01-07T10:40:20.642Z
 draft: false
-featured: false
+featured: true
+tags: []
+categories: []
 image:
-  filename: featured
+  filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
   focal_point: Smart
   preview_only: false
 ---
