@@ -12,10 +12,9 @@ image:
 
 # 0ctf 2021
 
-CTF : https://ctftime.org/event/1356
-<br>
+CTF : https://ctftime.org/event/1356<br>
 
-Challenge : https://ctftime.org/writeup/29118
+Challenge : https://ctftime.org/writeup/29118<br>
 Points: 154
 
 # Checksec
@@ -165,12 +164,11 @@ __int64 __fastcall gen_hash(heap_note *note, int size)
   return idx;
 }
 ```
-This function seems pretty good isn't it. Now lets look the `abs8()` at it gdb.
-Lets give "A" as our name and step a breakpoint at 0x138f
+This function seems pretty good isn't it. Now lets look at the `abs8()` in gdb.
+Lets give "A" as our name and hit breakpoint at 0x138f
 ![enter image description here](https://imgur.com/oraDnOw.png)
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
-![enter image description here](https://imgur.com/3cgsgFO.png)
-So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
+![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 ```asm
 .text:000000000000138F ; 9:   sum = abs8(tmp);
 .text:000000000000138F                 movzx   eax, [rbp+tmp];
@@ -201,11 +199,19 @@ So there are two bugs.
 
 Next i quickly wrote a fuzzer to allocate chunks randomly. And i got nice crashes. 
 1. Tcahce dup
-2. Unsorted bin corruption
+2. Unsorted & smallbin bin corruption
 
 [![asciicast](https://asciinema.org/a/459156.svg)](https://asciinema.org/a/459156)
 
-Now lets build our exploit.
+Now lets build our exploit. <br> So with the OOB bug we can mark chunk idx 0 and 1 as in_use by creating a "\x80" named chunk. <br> When a "\x80" named chunk is created the heap address of this chunk gets overlapped with the address of `in_use` variable in bss.<br>
+```
+x/gx $in_use
+0x555555558440:	0x0000000100000001 chunk 0 & 1 are in use
+0x555555558440:	0x000055555555c720 "\x80" chunk heap address overlapped
+
+```
+<br> So we can use this primitive for getting leaks and building our exploit.<br>
+
 # Exploit
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
