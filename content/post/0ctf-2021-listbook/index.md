@@ -16,7 +16,7 @@ Points: 154 <br>
 
 # Checksec
 
-```json
+```yaml
 Arch:     amd64-64-little
 RELRO:    Full RELRO
 Stack:    Canary found
