@@ -29,7 +29,7 @@ RUNPATH:  './'
 
 It's a classic `libc 2.31` heap challenge
 
-```yaml
+```ags
  _     _     _   ____              _    
 | |   (_)___| |_| __ )  ___   ___ | | __
 | |   | / __| __|  _ \ / _ \ / _ \| |/ /
