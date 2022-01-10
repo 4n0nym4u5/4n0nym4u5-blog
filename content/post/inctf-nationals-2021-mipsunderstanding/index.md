@@ -9,7 +9,9 @@ image:
   preview_only: false
 ---
 ![MIPSunderstanding](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
+
 > InCTF Nationals 2021 MIPSunderstanding
+
 # Checksec
 
 ```yaml
