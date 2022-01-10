@@ -1,8 +1,8 @@
-name = "Academic"
+name = "4n0nym4u5"
 license = "MIT"
 licenselink = "https://github.com/wowchemy/starter-hugo-academic/blob/master/LICENSE.md"
-description = "Use the website builder to easily build your site with 50+ widgets and deploy with one click! Fully customize your site with themes, plugins, and language packs."
-homepage = "https://github.com/wowchemy/starter-hugo-academic/"
+description = "CTF player @zh3r0"
+homepage = "https://4n0nym4u5.netlify.app/"
 demosite = "https://wowchemy.com/templates/"
 min_version = "0.84"
 tags = ["widgets",
@@ -40,8 +40,8 @@ features = ["page builder", "widgets", "themes", "search", "research publication
             "blog", "create courses", "talks", "events", "slides", "gallery", "contact form"]
 
 [author]
-  name = "George Cushen"
-  homepage = "https://georgecushen.com"
+  name = "4n0nym4u5"
+  homepage = "https://4n0nym4u5.netlify.app/"
 
 # If porting an existing theme
 [original]
