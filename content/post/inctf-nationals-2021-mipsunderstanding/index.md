@@ -10,7 +10,7 @@ image:
 ---
 ![MIPSunderstanding](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
 
-> # Checksec
+> ### Checksec
 
 ```yaml
     Arch:     mips-64-little
@@ -21,7 +21,7 @@ image:
     RWX:      Has RWX segments
 ```
 
-> # Overview
+> ### Overview
 
 ```yaml
 chall: ELF 64-bit LSB pie executable, MIPS, MIPS-III version 1 (SYSV), dynamically linked, with debug_info, not stripped
