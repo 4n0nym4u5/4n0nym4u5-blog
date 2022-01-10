@@ -9,8 +9,8 @@ image:
   preview_only: false
 ---
 ![MIPSunderstanding](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
-
-> ### Checksec
+> InCTF Nationals 2021 MIPSunderstanding
+# Checksec
 
 ```yaml
     Arch:     mips-64-little
@@ -21,7 +21,7 @@ image:
     RWX:      Has RWX segments
 ```
 
-> ### Overview
+# Overview
 
 ```yaml
 chall: ELF 64-bit LSB pie executable, MIPS, MIPS-III version 1 (SYSV), dynamically linked, with debug_info, not stripped
@@ -30,7 +30,7 @@ chall: ELF 64-bit LSB pie executable, MIPS, MIPS-III version 1 (SYSV), dynamical
 ![enter image description here](https://imgur.com/21z6F5S.png)
 I dont know mips assembly and i solved it without understanding mips :)) . It's an easy challenge. Lets open the binary in ghidra and analyse the binary. Well there's alot of junk code in it so ill straight up show you the `thiago` and `keita` function.
 
-> ### thiago
+### thiago
 
 ```c
 void keita(void)
@@ -56,8 +56,7 @@ void keita(void)
 }
 ```
 
-> #### klopp
-###### END
+### klopp
 
 ```c
 void thiago(void)
@@ -87,9 +86,9 @@ void thiago(void)
 
 Now lets dive into exploitation. But the most important part is to setup an debug environment for mips.
 
-> # Setting up the debug environment
->
-> I always use this template given by [X3eRo0](https://twitter.com/X3eRo0)  to debug different arch pwn challenges
+# Setting up the debug environment
+
+I always use this template given by [X3eRo0](https://twitter.com/X3eRo0)  to debug different arch pwn challenges
 
 ```python
 #!/usr/bin/env python3.9
@@ -159,7 +158,7 @@ NOTE: use gdb-gef instead of pwndbg because pwndbg has alot of issues when it co
 
 Lets start to build exploit.
 
-> # Exploit
+# Exploit
 
 1. Use the `thiago` function to leak pie address
 2. Use the `klopp` function to overflow the stack and return to your shellcode
