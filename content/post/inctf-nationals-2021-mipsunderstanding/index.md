@@ -252,6 +252,4 @@ io.interactive()
 
 [![asciicast](https://asciinema.org/a/460943.svg)](https://asciinema.org/a/460943) 
 
-```ruby
-InCTF{w3_sh4ll_not_b3_m0v3D_132244345}
-```
+> InCTF{w3_sh4ll_not_b3_m0v3D_132244345}
