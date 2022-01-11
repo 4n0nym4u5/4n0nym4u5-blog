@@ -236,7 +236,7 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-```py
+```python
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 __MODE__ ="PWN"
