@@ -14,7 +14,7 @@ image:
 
 > # Checksec
 >
-> - - -
+ - - -
 
 ```yaml
     Arch:     mips-64-little
