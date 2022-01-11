@@ -56,7 +56,7 @@ image:
 > Challenge : https://ctftime.org/writeup/29118 <br>
 > Points: 154 <br>
 
-># Checksec
+>## Checksec
 
 
 <<<<<<< HEAD
@@ -76,7 +76,7 @@ PIE:      PIE enabled
 RUNPATH:  './'
 ```
 
-># Overview
+>## Overview
 
 
 
@@ -111,7 +111,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c
+```c 
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
@@ -299,7 +299,7 @@ pwndbg> x/gx $in_use
 
 <br>So we can use this primitive for getting leaks and building our exploit.<br>
 
-># Exploit
+>## Exploit
 
 
 
