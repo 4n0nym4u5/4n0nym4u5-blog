@@ -9,10 +9,12 @@ image:
   preview_only: false
 ---
 > - - -
+>
 > # MIPSunderstanding
+>
 > - - -
 
-![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
+> ![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
 
 > # Checksec
 >
