@@ -27,8 +27,8 @@ content:
   filter_button:
   - name: All
     tag: '*'
-  - name: Pwn
-    tag: Pwn
+  - name: Deep Learning
+    tag: Deep Learning
   - name: Other
     tag: Demo
 
