@@ -1,5 +1,5 @@
 ---
-title: InCTF Nationals 2021 MIPSunderstanding
+title: InCTF Nationals 2021
 date: 2022-01-10T12:56:17.647Z
 draft: false
 featured: false
@@ -8,17 +8,13 @@ image:
   focal_point: Smart
   preview_only: false
 ---
-![MIPSunderstanding](https://i.imgur.com/qUtdCzM.png "InCTF Nationals 2021")
+![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
 
 > # MIPSunderstanding
->
->
 >
 > - - -
 >
 > # Checksec
->
->
 >
 > - - -
 
@@ -98,8 +94,6 @@ Now lets dive into exploitation. But the most important part is to setup an debu
 
 > # Setting up the debug environment
 >
->
->
 > - - -
 
 I always use this template given by [X3eRo0](https://twitter.com/X3eRo0)  to debug different arch pwn challenges
@@ -173,8 +167,6 @@ NOTE: use gdb-gef instead of pwndbg because pwndbg has alot of issues when it co
 Lets start to build exploit.
 
 > # Exploit
->
->
 >
 > - - -
 
