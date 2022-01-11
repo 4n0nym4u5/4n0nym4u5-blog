@@ -8,9 +8,13 @@ image:
   focal_point: Smart
   preview_only: false
 ---
-![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
-
 > - - -
+>
+> # MIPSunderstanding
+>
+> - - -
+>
+> ![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
 >
 > # Checksec
 >
@@ -26,6 +30,8 @@ image:
 ```
 
 > # Overview
+>
+> - - -
 
 ```yaml
 chall: ELF 64-bit LSB pie executable, MIPS, MIPS-III version 1 (SYSV), dynamically linked, with debug_info, not stripped
