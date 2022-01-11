@@ -15,19 +15,11 @@ image:
   preview_only: true
   alt_text: ""
 ---
-title: 0ctf 2021 listbook
-date: 2022-01-07T10:40:20.642Z
-draft: false
-featured: true
-tags: \[]
-categories: \[]
-image:
-  filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
-  focal_point: Smart
-  preview_only: true
-  alt_text: ""
+- - -
 
 # listbook
+
+- - -
 
 > CTF : https://ctftime.org/event/1356 <br>
 > Challenge : https://ctftime.org/writeup/29118 <br>
@@ -67,7 +59,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c
+```c {lineos=inline}
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
