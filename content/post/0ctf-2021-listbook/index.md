@@ -52,7 +52,7 @@ RUNPATH:  './'
 
 It's a classic `libc 2.31` heap challenge
 
-```ags {title="options", isCollapsed="true"}
+```ags
  _     _     _   ____              _    
 | |   (_)___| |_| __ )  ___   ___ | | __
 | |   | / __| __|  _ \ / _ \ / _ \| |/ /
@@ -71,7 +71,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c {linenos=inline, linenostart=1, title="main", isCollapsed="false"}
+```c {linenos=inline, linenostart=1}
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
@@ -83,16 +83,16 @@ void main()
     option = print_options();
     switch(option)
     {
-	    case 1: add();
-		    break;
-	    case 2: remove();
-		    break;
-	    case 3: show();
-		    break;
-	    case 4: puts("bye!");
-		    exit(0);
-	    default: puts("invalid");
-		     break;
+        case 1: add();
+            break;
+        case 2: remove();
+            break;
+        case 3: show();
+            break;
+        case 4: puts("bye!");
+            exit(0);
+        default: puts("invalid");
+             break;
     }
   }
 }
@@ -100,7 +100,7 @@ void main()
 
 ### add
 
-```c {linenos=inline, linenostart=1, title="add", isCollapsed="false"}
+```c {linenos=inline, linenostart=1}
 int add()
 {
   int hash; // [rsp+4h] [rbp-Ch]
@@ -124,7 +124,7 @@ int add()
 
 ### remove
 
-```c {linenos=inline, linenostart=1, title="remove", isCollapsed="false"}
+```c {linenos=inline, linenostart=1}
 void __noreturn remove()
 {
   int idx; // [rsp+Ch] [rbp-14h]
@@ -156,7 +156,7 @@ void __noreturn remove()
 
 ### show
 
-```c {linenos=inline, linenostart=1, title="show", isCollapsed="false"}
+```c {linenos=inline, linenostart=1}
 void __noreturn show()
 {
   int idx; // [rsp+4h] [rbp-Ch]
@@ -182,7 +182,7 @@ void __noreturn show()
 
 There is one more interesting function that is `gen_hash()` used in `add` function.
 
-```c {linenos=inline, linenostart=1, title="gen_hash", isCollapsed="false"}
+```c {linenos=inline, linenostart=1}
 __int64 __fastcall gen_hash(heap_note *note, int size)
 {
   char sum; // [rsp+17h] [rbp-5h]
@@ -205,7 +205,7 @@ Lets give "A" as our name and hit breakpoint at 0x138f
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
 ![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-```assembly {linenos=inline, linenostart=1, title="abs8", isCollapsed="false"}
+```c {linenos=inline, linenostart=1}
 .text:000000000000138F ; 9:   sum = abs8(tmp);
 .text:000000000000138F                 movzx   eax, [sum];
 .text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
@@ -222,7 +222,7 @@ So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and
 
 So there are two bugs. 
 
-+ UAF bug in `remove()` function	
++ UAF bug in `remove()` function    
 + OOB in `gen_hash()` function
 
 Next i quickly wrote a fuzzer to allocate chunks randomly. And i got nice crashes. 
@@ -236,8 +236,8 @@ Now lets build our exploit. <br> So with the OOB bug we can mark chunk idx 0 and
 
 ```yaml
 pwndbg> x/gx $in_use
-0x555555558440:	0x0000000100000001 chunk 0 & 1 are in use
-0x555555558440:	0x000055555555c720 "\x80" chunk heap address overlapped
+0x555555558440: 0x0000000100000001 chunk 0 & 1 are in use
+0x555555558440: 0x000055555555c720 "\x80" chunk heap address overlapped
 ```
 
 <br>So we can use this primitive for getting leaks and building our exploit.<br>
@@ -247,7 +247,7 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-```python {linenos=inline, linenostart=1, title="expl.py", isCollapsed="false"}
+```python {linenos=inline, linenostart=1}
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 
