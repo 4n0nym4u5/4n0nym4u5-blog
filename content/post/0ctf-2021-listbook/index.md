@@ -8,10 +8,15 @@ tags: []
 =======
 tags:
   - pwn
-  - libc-2.31"
+  - libc-2.31
   - tcache-stashing-unlink-plus
+<<<<<<< HEAD
 >>>>>>> f6d345e5262b6891d7ca348d3f53eb84f4f744d3
 categories: []
+=======
+categories:
+  - heap
+>>>>>>> 2af246a35a8e5b05f41205670f743017e0a5f11d
 image:
   filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
   focal_point: Smart
