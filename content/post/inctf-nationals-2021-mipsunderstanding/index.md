@@ -27,7 +27,7 @@ image:
 
 > # Overview
 >
-> - - -
+ - - -
 
 ```yaml
 chall: ELF 64-bit LSB pie executable, MIPS, MIPS-III version 1 (SYSV), dynamically linked, with debug_info, not stripped
@@ -94,7 +94,7 @@ Now lets dive into exploitation. But the most important part is to setup an debu
 
 > # Setting up the debug environment
 >
-> - - -
+ - - -
 
 I always use this template given by [X3eRo0](https://twitter.com/X3eRo0)  to debug different arch pwn challenges
 
@@ -168,7 +168,7 @@ Lets start to build exploit.
 
 > # Exploit
 >
-> - - -
+ - - -
 
 1. Use the `thiago` function to leak pie address
 2. Use the `klopp` function to overflow the stack and return to your shellcode
