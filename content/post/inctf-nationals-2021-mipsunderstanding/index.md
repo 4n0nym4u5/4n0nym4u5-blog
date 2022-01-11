@@ -1,5 +1,5 @@
 ---
-title: InCTF Nationals 2021 MIPSunderstanding
+title: InCTF Nationals 2021
 date: 2022-01-10T12:56:17.647Z
 draft: false
 featured: false
