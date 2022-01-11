@@ -56,7 +56,7 @@ image:
 > Challenge : https://ctftime.org/writeup/29118 <br>
 > Points: 154 <br>
 
->## Checksec
+># Checksec
 
 
 <<<<<<< HEAD
@@ -76,7 +76,7 @@ PIE:      PIE enabled
 RUNPATH:  './'
 ```
 
->## Overview
+># Overview
 
 
 
@@ -299,7 +299,7 @@ pwndbg> x/gx $in_use
 
 <br>So we can use this primitive for getting leaks and building our exploit.<br>
 
->## Exploit
+># Exploit
 
 
 
