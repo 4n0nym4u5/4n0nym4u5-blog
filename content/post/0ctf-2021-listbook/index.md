@@ -1,5 +1,5 @@
 ---
-title: 0ctf 2021 listbook
+title: 0ctf 2021
 date: 2022-01-07T10:40:20.642Z
 draft: false
 featured: true
@@ -25,7 +25,11 @@ image:
 > Challenge : https://ctftime.org/writeup/29118 <br>
 > Points: 154 <br>
 
-# Checksec
+># Checksec
+
+
+
+- - -
 
 ```yaml
 Arch:     amd64-64-little
@@ -36,7 +40,11 @@ PIE:      PIE enabled
 RUNPATH:  './'
 ```
 
-# Overview
+># Overview
+
+
+
+- - -
 
 It's a classic `libc 2.31` heap challenge
 
@@ -59,7 +67,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c {lineos=inline}
+```c
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
@@ -230,7 +238,11 @@ pwndbg> x/gx $in_use
 
 <br>So we can use this primitive for getting leaks and building our exploit.<br>
 
-# Exploit
+># Exploit
+
+
+
+- - -
 
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
