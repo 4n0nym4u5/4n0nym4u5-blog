@@ -15,8 +15,6 @@ image:
   preview_only: true
   alt_text: ""
 ---
-- - -
-
 title: 0ctf 2021 listbook
 date: 2022-01-07T10:40:20.642Z
 draft: false
@@ -29,8 +27,6 @@ image:
   preview_only: true
   alt_text: ""
 
-- - -
-
 # listbook
 
 > CTF : https://ctftime.org/event/1356 <br>
@@ -39,7 +35,7 @@ image:
 
 # Checksec
 
-```yaml {title="checksec", isCollapsed="true"}
+```yaml
 Arch:     amd64-64-little
 RELRO:    Full RELRO
 Stack:    Canary found
@@ -71,7 +67,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c {linenos=inline, linenostart=1}
+```c
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
@@ -100,7 +96,7 @@ void main()
 
 ### add
 
-```c {linenos=inline, linenostart=1}
+```c
 int add()
 {
   int hash; // [rsp+4h] [rbp-Ch]
@@ -124,7 +120,7 @@ int add()
 
 ### remove
 
-```c {linenos=inline, linenostart=1}
+```c
 void __noreturn remove()
 {
   int idx; // [rsp+Ch] [rbp-14h]
@@ -156,7 +152,7 @@ void __noreturn remove()
 
 ### show
 
-```c {linenos=inline, linenostart=1}
+```c
 void __noreturn show()
 {
   int idx; // [rsp+4h] [rbp-Ch]
@@ -182,7 +178,7 @@ void __noreturn show()
 
 There is one more interesting function that is `gen_hash()` used in `add` function.
 
-```c {linenos=inline, linenostart=1}
+```c
 __int64 __fastcall gen_hash(heap_note *note, int size)
 {
   char sum; // [rsp+17h] [rbp-5h]
@@ -205,7 +201,7 @@ Lets give "A" as our name and hit breakpoint at 0x138f
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
 ![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-```c {linenos=inline, linenostart=1}
+```c
 .text:000000000000138F ; 9:   sum = abs8(tmp);
 .text:000000000000138F                 movzx   eax, [sum];
 .text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
@@ -222,13 +218,13 @@ So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and
 
 So there are two bugs. 
 
-+ UAF bug in `remove()` function    
-+ OOB in `gen_hash()` function
+* UAF bug in `remove()` function    
+* OOB in `gen_hash()` function
 
 Next i quickly wrote a fuzzer to allocate chunks randomly. And i got nice crashes. 
 
-+ Tcache dup
-+ ( Unsorted / smallbin ) bin corruption
+* Tcache dup
+* ( Unsorted / smallbin ) bin corruption
 
 [![asciicast](https://asciinema.org/a/459156.svg)](https://asciinema.org/a/459156)
 
@@ -247,7 +243,7 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-```python {linenos=inline, linenostart=1}
+```python
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 
