@@ -10,8 +10,6 @@ image:
 ---
 ![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
 
-> # MIPSunderstanding
->
 > - - -
 >
 > # Checksec
