@@ -8,14 +8,8 @@ image:
   focal_point: Smart
   preview_only: false
 ---
-> - - -
->
-> # MIPSunderstanding
->
-> - - -
-
 > ![](https://i.imgur.com/qUtdCzM.png "MIPSunderstanding")
-
+> - - -
 > # Checksec
 >
 > - - -
