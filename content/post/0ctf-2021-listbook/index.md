@@ -1,5 +1,5 @@
 ---
-title: 0ctf 2021 listbook
+title: 0ctf 2021
 date: 2022-01-07T10:40:20.642Z
 draft: false
 featured: true
@@ -26,6 +26,7 @@ image:
 - - -
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 CTF : https://ctftime.org/event/1356 <br>
 Challenge : https://ctftime.org/writeup/29118 <br>
 Points: 154 <br>
@@ -45,19 +46,28 @@ image:
   focal_point: Smart
   preview_only: true
   alt_text: ""
+=======
+# listbook
+>>>>>>> 2404ae7d15e40055380fe8ae8f27ed407bb34b8a
 
 - - -
-
-# listbook
 
 > CTF : https://ctftime.org/event/1356 <br>
 > Challenge : https://ctftime.org/writeup/29118 <br>
 > Points: 154 <br>
 
-# Checksec
+># Checksec
 
+
+<<<<<<< HEAD
 ```yaml {title="checksec", isCollapsed="true"}
 >>>>>>> f6d345e5262b6891d7ca348d3f53eb84f4f744d3
+=======
+
+- - -
+
+```yaml
+>>>>>>> 2404ae7d15e40055380fe8ae8f27ed407bb34b8a
 Arch:     amd64-64-little
 RELRO:    Full RELRO
 Stack:    Canary found
@@ -66,15 +76,23 @@ PIE:      PIE enabled
 RUNPATH:  './'
 ```
 
-# Overview
+># Overview
+
+
+
+- - -
 
 It's a classic `libc 2.31` heap challenge
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 ```ags
 =======
 ```ags {title="options", isCollapsed="true"}
 >>>>>>> f6d345e5262b6891d7ca348d3f53eb84f4f744d3
+=======
+```ags
+>>>>>>> 2404ae7d15e40055380fe8ae8f27ed407bb34b8a
  _     _     _   ____              _    
 | |   (_)___| |_| __ )  ___   ___ | | __
 | |   | / __| __|  _ \ / _ \ / _ \| |/ /
@@ -93,7 +111,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c {linenos=inline, linenostart=1, title="main", isCollapsed="false"}
+```c
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
@@ -105,16 +123,16 @@ void main()
     option = print_options();
     switch(option)
     {
-	    case 1: add();
-		    break;
-	    case 2: remove();
-		    break;
-	    case 3: show();
-		    break;
-	    case 4: puts("bye!");
-		    exit(0);
-	    default: puts("invalid");
-		     break;
+        case 1: add();
+            break;
+        case 2: remove();
+            break;
+        case 3: show();
+            break;
+        case 4: puts("bye!");
+            exit(0);
+        default: puts("invalid");
+             break;
     }
   }
 }
@@ -122,7 +140,7 @@ void main()
 
 ### add
 
-```c {linenos=inline, linenostart=1, title="add", isCollapsed="false"}
+```c
 int add()
 {
   int hash; // [rsp+4h] [rbp-Ch]
@@ -146,7 +164,7 @@ int add()
 
 ### remove
 
-```c {linenos=inline, linenostart=1, title="remove", isCollapsed="false"}
+```c
 void __noreturn remove()
 {
   int idx; // [rsp+Ch] [rbp-14h]
@@ -178,7 +196,7 @@ void __noreturn remove()
 
 ### show
 
-```c {linenos=inline, linenostart=1, title="show", isCollapsed="false"}
+```c
 void __noreturn show()
 {
   int idx; // [rsp+4h] [rbp-Ch]
@@ -204,7 +222,7 @@ void __noreturn show()
 
 There is one more interesting function that is `gen_hash()` used in `add` function.
 
-```c {linenos=inline, linenostart=1, title="gen_hash", isCollapsed="false"}
+```c
 __int64 __fastcall gen_hash(heap_note *note, int size)
 {
   char sum; // [rsp+17h] [rbp-5h]
@@ -228,10 +246,14 @@ So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and
 ![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ```c
 =======
 ```assembly {linenos=inline, linenostart=1, title="abs8", isCollapsed="false"}
 >>>>>>> f6d345e5262b6891d7ca348d3f53eb84f4f744d3
+=======
+```c
+>>>>>>> 2404ae7d15e40055380fe8ae8f27ed407bb34b8a
 .text:000000000000138F ; 9:   sum = abs8(tmp);
 .text:000000000000138F                 movzx   eax, [rbp+tmp];
 .text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
@@ -257,13 +279,13 @@ So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and
 
 So there are two bugs. 
 
-+ UAF bug in `remove()` function	
-+ OOB in `gen_hash()` function
+* UAF bug in `remove()` function    
+* OOB in `gen_hash()` function
 
 Next i quickly wrote a fuzzer to allocate chunks randomly. And i got nice crashes. 
 
-+ Tcache dup
-+ ( Unsorted / smallbin ) bin corruption
+* Tcache dup
+* ( Unsorted / smallbin ) bin corruption
 
 [![asciicast](https://asciinema.org/a/459156.svg)](https://asciinema.org/a/459156)
 
@@ -271,22 +293,30 @@ Now lets build our exploit. <br> So with the OOB bug we can mark chunk idx 0 and
 
 ```yaml
 pwndbg> x/gx $in_use
-0x555555558440:	0x0000000100000001 chunk 0 & 1 are in use
-0x555555558440:	0x000055555555c720 "\x80" chunk heap address overlapped
+0x555555558440: 0x0000000100000001 chunk 0 & 1 are in use
+0x555555558440: 0x000055555555c720 "\x80" chunk heap address overlapped
 ```
 
 <br>So we can use this primitive for getting leaks and building our exploit.<br>
 
-# Exploit
+># Exploit
+
+
+
+- - -
 
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ```python
 =======
 ```python {linenos=inline, linenostart=1, title="expl.py", isCollapsed="false"}
 >>>>>>> f6d345e5262b6891d7ca348d3f53eb84f4f744d3
+=======
+```python
+>>>>>>> 2404ae7d15e40055380fe8ae8f27ed407bb34b8a
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 
