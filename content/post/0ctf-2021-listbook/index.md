@@ -14,15 +14,31 @@ image:
   preview_only: true
   alt_text: ""
 ---
+- - -
+
+title: 0ctf 2021 listbook
+date: 2022-01-07T10:40:20.642Z
+draft: false
+featured: true
+tags: \[]
+categories: \[]
+image:
+  filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
+  focal_point: Smart
+  preview_only: true
+  alt_text: ""
+
+- - -
+
 # listbook
 
->CTF : https://ctftime.org/event/1356 <br>
-Challenge : https://ctftime.org/writeup/29118 <br>
-Points: 154 <br>
+> CTF : https://ctftime.org/event/1356 <br>
+> Challenge : https://ctftime.org/writeup/29118 <br>
+> Points: 154 <br>
 
 # Checksec
 
-```yaml
+```yaml {title="checksec", isCollapsed="true"}
 Arch:     amd64-64-little
 RELRO:    Full RELRO
 Stack:    Canary found
@@ -35,7 +51,7 @@ RUNPATH:  './'
 
 It's a classic `libc 2.31` heap challenge
 
-```ags
+```ags {title="options", isCollapsed="true"}
  _     _     _   ____              _    
 | |   (_)___| |_| __ )  ___   ___ | | __
 | |   | / __| __|  _ \ / _ \ / _ \| |/ /
@@ -54,7 +70,7 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c
+```c {linenos=inline, linenostart=1, title="main", isCollapsed="false"}
 void main()
 {
   int option; // [rsp+Ch] [rbp-4h]
@@ -83,7 +99,7 @@ void main()
 
 ### add
 
-```c
+```c {linenos=inline, linenostart=1, title="add", isCollapsed="false"}
 int add()
 {
   int hash; // [rsp+4h] [rbp-Ch]
@@ -107,7 +123,7 @@ int add()
 
 ### remove
 
-```c
+```c {linenos=inline, linenostart=1, title="remove", isCollapsed="false"}
 void __noreturn remove()
 {
   int idx; // [rsp+Ch] [rbp-14h]
@@ -139,7 +155,7 @@ void __noreturn remove()
 
 ### show
 
-```c
+```c {linenos=inline, linenostart=1, title="show", isCollapsed="false"}
 void __noreturn show()
 {
   int idx; // [rsp+4h] [rbp-Ch]
@@ -165,7 +181,7 @@ void __noreturn show()
 
 There is one more interesting function that is `gen_hash()` used in `add` function.
 
-```c
+```c {linenos=inline, linenostart=1, title="gen_hash", isCollapsed="false"}
 __int64 __fastcall gen_hash(heap_note *note, int size)
 {
   char sum; // [rsp+17h] [rbp-5h]
@@ -188,39 +204,30 @@ Lets give "A" as our name and hit breakpoint at 0x138f
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
 ![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-```c
+```assembly {linenos=inline, linenostart=1, title="abs8", isCollapsed="false"}
 .text:000000000000138F ; 9:   sum = abs8(tmp);
-.text:000000000000138F                 movzx   eax, [rbp+tmp];
+.text:000000000000138F                 movzx   eax, [sum];
 .text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
 .text:0000000000001396                 mov     edx, eax; eax = 0xff 
 .text:0000000000001398                 mov     eax, edx; edx = 0xff 
-.text:000000000000139A                 xor     al, [rbp+tmp]; al {0xff} ^ [rbp+tmp] {0x80}
-.text:000000000000139D                 sub     eax, edx; eax = 0x7f edx = 0xff
-.text:000000000000139F                 mov     [rbp+tmp], eax; eax = 0xffffff80
+.text:000000000000139A                 xor     al, [sum]; {al:=0xff} ^ {sum:=0x80}
+.text:000000000000139D                 sub     eax, edx; 0x7f-0xff
+.text:000000000000139F                 mov     [sum], eax; eax = 0xffffff80
 .text:00000000000013A2 ; 10:   if ( sum > 15 ) [false]
-.text:00000000000013A2                 cmp     [rbp+tmp], 0Fh
+.text:00000000000013A2                 cmp     [sum], 0Fh
 .text:00000000000013A6                 jle     short return_hash
-.text:00000000000013A8 ; 11:     sum %= 16;
-.text:00000000000013A8                 movzx   eax, [rbp+tmp]
-.text:00000000000013AC                 mov     edx, eax
-.text:00000000000013AE                 sar     dl, 7
-.text:00000000000013B1                 shr     dl, 4
-.text:00000000000013B4                 add     eax, edx
-.text:00000000000013B6                 and     eax, 0Fh
-.text:00000000000013B9                 sub     eax, edx
-.text:00000000000013BB                 mov     [rbp+tmp], al
 .text:00000000000013BE ; 12:   return sum; ; sum = 0xffffff80 :)) 
 ```
 
 So there are two bugs. 
 
-1. UAF bug in `remove()` function	
-2. OOB in `gen_hash()` function
++ UAF bug in `remove()` function	
++ OOB in `gen_hash()` function
 
 Next i quickly wrote a fuzzer to allocate chunks randomly. And i got nice crashes. 
 
-1. Tcache dup
-2. Unsorted & smallbin bin corruption
++ Tcache dup
++ ( Unsorted / smallbin ) bin corruption
 
 [![asciicast](https://asciinema.org/a/459156.svg)](https://asciinema.org/a/459156)
 
@@ -239,37 +246,15 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-```python
+```python {linenos=inline, linenostart=1, title="expl.py", isCollapsed="false"}
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
-__MODE__ ="PWN"
 
 from rootkit import *
 exe = context.binary = ELF('./listbook')
 
 host = args.HOST or '111.186.58.249'
 port = int(args.PORT or 20001)
-
-def local(argv=[], *a, **kw):
-    '''Execute the target binary locally'''
-    if args.GDB:
-        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, *a, **kw)
-    else:
-        return process([exe.path] + argv, *a, **kw)
-
-def remote(argv=[], *a, **kw):
-    '''Connect to the process on the remote host'''
-    io = connect(host, port)
-    if args.GDB:
-        gdb.attach(io, gdbscript=gdbscript)
-    return io
-
-def start(argv=[], *a, **kw):
-    '''Start the exploit against the target.'''
-    if args.LOCAL:
-        return local(argv, *a, **kw)
-    else:
-        return remote(argv, *a, **kw)
 
 gdbscript = '''
 tbreak main
