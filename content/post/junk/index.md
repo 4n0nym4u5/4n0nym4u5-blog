@@ -8,4 +8,12 @@ image:
   focal_point: Smart
   preview_only: false
 ---
-AAAA
+```go {linenos=table,hl_lines=[8,"15-17"],linenostart=199}
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("hello world")
+}
+```
