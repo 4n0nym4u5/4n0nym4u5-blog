@@ -5,7 +5,7 @@ draft: false
 featured: true
 tags:
   - pwn
-  - libc-2.31"
+  - libc-2.31
   - tcache-stashing-unlink-plus
 categories: []
 image:
