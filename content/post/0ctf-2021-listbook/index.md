@@ -47,7 +47,7 @@ RUNPATH:  './'
 
 - - -
 
-It's a classic `libc 2.31` heap challenge
+It's a classic `libc 2.31` heap challenge. 
 
 ```ags
  _     _     _   ____              _    
