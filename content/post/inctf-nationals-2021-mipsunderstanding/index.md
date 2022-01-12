@@ -2,7 +2,12 @@
 title: InCTF Nationals 2021
 date: 2022-01-10T12:56:17.647Z
 draft: false
-featured: false
+featured: true
+tags:
+  - pwn
+  - mips64
+categories:
+  - mips
 image:
   filename: featured
   focal_point: Smart
