@@ -168,7 +168,7 @@ We can use this gadget to add the value of a pointer with arbitrary value. So wi
 So the exploit steps are like this:
 
 1. We read __libc_start_main address into rax.
-2. We write rax to bss address.
+2. We write __libc_start_main into bss.
 3. We write the string "/bin/cat /flag\x00" to bss using the 3dgadget.
 4. We use the 3dgadget to change __libc_start_main address to system in bss
 5. We stack pivot right above our crafted system address in bss and execute
