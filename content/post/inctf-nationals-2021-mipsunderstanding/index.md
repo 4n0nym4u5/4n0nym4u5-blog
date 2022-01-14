@@ -34,6 +34,8 @@ image:
 
 - - -
 
+Challenge files : [](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/MIPSunderstanding)[MIPSunderstanding](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/MIPSunderstanding)
+
 ```yaml
 chall: ELF 64-bit LSB pie executable, MIPS, MIPS-III version 1 (SYSV), dynamically linked, with debug_info, not stripped
 ```
