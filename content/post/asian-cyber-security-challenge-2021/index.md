@@ -19,7 +19,7 @@ image:
 > CTF : https://acsc.asia/ <br>
 > Challenge files : https://github.com/4n0nym4u5/CTF-Writeups/tree/main/CArot <br>
 > Points: 320 <br>
-
+>
 > # Checksec
 
 - - -
@@ -55,75 +55,11 @@ CArot
 
 So they have provided the challenge source file `carot.c`. Let's look at it. The source code is pretty huge so ill cut it down to only what's necessary
 
-```c
-char* http_receive_request() {
-  long long int read_limit = 4096;
-
-  connect_mode = -1;
-
-  char buffer[BUFFERSIZE] = {};
-  scanf("%[^\n]", buffer); // stack buffer overflow
-  getchar();
-  
-  if (memcmp(buffer, "GET ", 4) != 0) return NULL;
-  
-  int n = strlen(buffer); // use \x00 to make n < 9
-  read_limit -= n;
-
-  if (n < 9) return NULL; // we have to reach here and then execute our rop
-  // ...
-
-int main() {
-  setbuf(stdout, NULL);
-  while (1) {
-    char* fname = http_receive_request();
-    // ...
-```
+![](https://imgur.com/4NwmooO.png)
 
 The binary uses a python proxy to run. 
 
-```python
-#!/usr/bin/python3
-
-from time import sleep
-from sys import stdin, stdout, exit
-from socket import *
-
-LIMIT = 4096
-
-buf = b''
-while True:
-  s = stdin.buffer.readline()
-  buf += s
-
-  if len(buf) > LIMIT:
-    print('You are too greedy')
-    exit(0)
-
-  if s == b'\n':
-    break
-
-p = socket(AF_INET, SOCK_STREAM)
-p.connect(("localhost", 11452))
-p.sendall(buf)
-
-sleep(2)
-
-p.setblocking(False)
-res = b''
-try:
-  while True:
-    s = p.recv(1024)
-    if not s:
-      print("breaking")
-      break
-    res += s
-    print(res)
-except:
-  pass
-
-stdout.buffer.write(res)
-```
+![](https://imgur.com/XSSvuQJ.png)
 
 So because of the proxy we can only send stdin once. Though we can get leaks printed out on stdout we cant use that leak for our second rop chain. So not a simple ret2libc challenge here.  We got only one shot and we printout flag to stdout. So lets move on to exploitation part now (my favourite part UwU).
 
