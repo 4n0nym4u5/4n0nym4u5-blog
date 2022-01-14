@@ -86,11 +86,9 @@ This function seems pretty good isn't it. Now lets look at the `abs8()` in gdb.
 Lets give "A" as our name and hit breakpoint at 0x138f
 ![enter image description here](https://imgur.com/oraDnOw.png)
 
-
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
 
-
-![enter image description here](https://imgur.com/3cgsgFO.png) 
+![enter image description here](https://imgur.com/3cgsgFO.png)
 
 Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
@@ -125,4 +123,4 @@ pwndbg> x/gx $in_use
 1. Use name "\x80" to trigger UAF in chunk idx 0 and 1.
 2. Since it uses libc 2.31 and the allocation size is 0x31 and 0x211 ( smallbin size ) we use [Tcache Stashing Unlink+](https://qianfei11.github.io/2020/05/05/Tcache-Stashing-Unlink-Attack/#Tcache-Stashing-Unlink-Attack-Plus) attack to create overlapping chunks and overwrite fd of the tcache in the list.<br>
 
-   ![](https://imgur.com/a/iLkBSj8.png)
+   ![](njkrxu9-imgur.png)
