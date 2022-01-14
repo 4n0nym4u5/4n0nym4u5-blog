@@ -19,7 +19,7 @@ image:
 > CTF : https://acsc.asia/ <br>
 > Challenge files : https://github.com/4n0nym4u5/CTF-Writeups/tree/main/CArot <br>
 > Points: 320 <br>
->
+
 > # Checksec
 
 - - -
