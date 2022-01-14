@@ -17,7 +17,7 @@ image:
 ---
 - - -
 
-># listbook
+> # listbook
 
 - - -
 
@@ -25,10 +25,8 @@ image:
 > Challenge : https://ctftime.org/writeup/29118 <br>
 > Challenge files : https://github.com/4n0nym4u5/CTF-Writeups/tree/main/0ctf-21-listbook <br>
 > Points: 154 <br>
-
-># Checksec
-
-
+>
+> # Checksec
 
 - - -
 
@@ -41,9 +39,7 @@ PIE:      PIE enabled
 RUNPATH:  './'
 ```
 
-># Overview
-
-
+> # Overview
 
 - - -
 
@@ -68,154 +64,37 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-```c 
-void main()
-{
-  int option; // [rsp+Ch] [rbp-4h]
-
-  setup_alarm();
-  puts(banner);
-  while ( 1 )
-  {
-    option = print_options();
-    switch(option)
-    {
-        case 1: add();
-            break;
-        case 2: remove();
-            break;
-        case 3: show();
-            break;
-        case 4: puts("bye!");
-            exit(0);
-        default: puts("invalid");
-             break;
-    }
-  }
-}
-```
+![](https://imgur.com/vPub2xA.png)
 
 ### add
 
-```c
-int add()
-{
-  int hash; // [rsp+4h] [rbp-Ch]
-  heap_note *note; // [rsp+8h] [rbp-8h]
-
-  printf("name>");
-  note = malloc(0x20uLL);
-  memset(note, 0, sizeof(heap_note));
-  read_inp(note, 16); // read_inp() reads input safely and null terminates our input
-  note->content = malloc(0x200uLL);
-  printf("content>");
-  read_inp(note->content, 512);
-  hash = gen_hash(note, 16);
-  if ( is_in_use[hash] )
-    note->next = note_buf[hash];
-  note_buf[hash] = note;
-  is_in_use[hash] = 1;
-  return puts("done");
-}
-```
+![](https://imgur.com/OBsOn0j.png)
 
 ### remove
 
-```c
-void __noreturn remove()
-{
-  int idx; // [rsp+Ch] [rbp-14h]
-  heap_note *note1; // [rsp+10h] [rbp-10h]
-  heap_note *note2; // [rsp+18h] [rbp-8h]
-
-  printf("index>");
-  idx = get_int();
-  if ( idx < 0 || idx > 15 )
-  {
-    puts("invalid");
-  }
-  else if ( note_buf[idx] && is_in_use[idx] )
-  {
-    for ( note1 = note_buf[idx]; note1; note1 = note2 )
-    {
-      note2 = note1->next;
-      note1->next = 0LL;
-      free(note1->content);                     // Use After Free Bug
-    }
-    is_in_use[idx] = 0;
-  }
-  else
-  {
-    puts("empty");
-  }
-}
-```
+![](https://imgur.com/4NVdniz.png)
 
 ### show
 
-```c
-void __noreturn show()
-{
-  int idx; // [rsp+4h] [rbp-Ch]
-  heap_note *note; // [rsp+8h] [rbp-8h]
-
-  printf("index>");
-  idx = get_int();
-  if ( idx < 0 || idx > 15 )
-  {
-    puts("invalid");
-  }
-  else if ( note_buf[idx] && is_in_use[idx] )
-  {
-    for ( note = note_buf[idx]; note; note = note->next )
-      printf("%s => %s\n", note->name, note->content);
-  }
-  else
-  {
-    puts("empty");
-  }
-}
-```
+![](https://imgur.com/ycu6G3o.png)
 
 There is one more interesting function that is `gen_hash()` used in `add` function.
 
-```c
-__int64 __fastcall gen_hash(heap_note *note, int size)
-{
-  char sum; // [rsp+17h] [rbp-5h]
-  char idx; // [rsp+17h] [rbp-5h]
-  int i; // [rsp+18h] [rbp-4h]
-
-  sum = 0;
-  for ( i = 0; i < size; ++i )
-    sum += note->name[i];                       // it takes the sum of all characters in note->name and stores it in sum variable
-  idx = abs8(sum);
-  if ( idx > 15 )
-    idx %= 16;
-  return idx;
-}
-```
+![](https://imgur.com/7nO0FGU.png)
 
 This function seems pretty good isn't it. Now lets look at the `abs8()` in gdb.
 Lets give "A" as our name and hit breakpoint at 0x138f
 ![enter image description here](https://imgur.com/oraDnOw.png)
-So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
-![enter image description here](https://imgur.com/3cgsgFO.png) <br> Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-```c
-.text:000000000000138F ; 9:   sum = abs8(tmp);
-.text:000000000000138F                 movzx   eax, [sum];
-.text:0000000000001393                 sar     al, 7; eax = 0x80 (before shift)
-.text:0000000000001396                 mov     edx, eax; eax = 0xff 
-.text:0000000000001398                 mov     eax, edx; edx = 0xff 
-.text:000000000000139A                 xor     al, [sum]; {al:=0xff} ^ {sum:=0x80}
-.text:000000000000139D                 sub     eax, edx; 0x7f-0xff
-.text:000000000000139F                 mov     [sum], eax; eax = 0xffffff80
-.text:00000000000013A2 ; 10:   if ( sum > 15 ) [false]
-.text:00000000000013A2                 cmp     [sum], 0Fh
-.text:00000000000013A6                 jle     short return_hash
-.text:00000000000013BE ; 12:   return sum; ; sum = 0xffffff80 :)) 
-```
+
+So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
+
+
+![enter image description here](https://imgur.com/3cgsgFO.png) 
+
+Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
+
+![](https://imgur.com/ogU9Cq6.png)
 
 So there are two bugs. 
 
@@ -239,9 +118,7 @@ pwndbg> x/gx $in_use
 
 <br>So we can use this primitive for getting leaks and building our exploit.<br>
 
-># Exploit
-
-
+> # Exploit
 
 - - -
 
