@@ -105,7 +105,7 @@ We can use this gadget to write the value stored in rax to any writable memory p
 0x000000004011c8: add [rbp-0x3d], ebx; nop [rax+rax]; ret; 
 ```
 
-We can use this gadget to add the value of a pointer with arbitrary value. So with this primitive we can craft any value. So i used this primitive for arbitrary write what where. My friend `X3ero0` named it as 3dgadget 😂 <br>
+We can use this gadget to add the value of a pointer with arbitrary value. So with this primitive we can craft any value. So i used this primitive for arbitrary write what where. My friend `X3eRo0` named it as 3dgadget 😂 <br>
 
 So the exploit steps are like this:
 
