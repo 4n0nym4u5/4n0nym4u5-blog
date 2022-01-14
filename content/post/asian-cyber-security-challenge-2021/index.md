@@ -3,6 +3,12 @@ title: Asian Cyber Security Challenge 2021
 date: 2022-01-14T08:45:55.904Z
 draft: false
 featured: false
+tags:
+  - pwn
+  - rop
+categories:
+  - rop
+  - pwn
 image:
   filename: featured
   focal_point: Smart

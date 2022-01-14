@@ -8,6 +8,7 @@ tags:
   - mips64
 categories:
   - mips
+  - pwn
 image:
   filename: featured
   focal_point: Smart

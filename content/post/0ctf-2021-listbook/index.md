@@ -9,6 +9,7 @@ tags:
   - tcache-stashing-unlink-plus
 categories:
   - heap
+  - pwn
 image:
   filename: b2b46a3ab8e563d35bb7d38c8cc18091.png
   focal_point: Smart
