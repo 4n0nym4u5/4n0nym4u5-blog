@@ -64,23 +64,23 @@ As shown in the options we can add , delete and show heap notes. Lets look at th
 
 ### main
 
-![](https://imgur.com/vPub2xA.png)
+![](https://imgur.com/kE40Aw8.png)
 
 ### add
 
-![](https://imgur.com/OBsOn0j.png)
+![](https://imgur.com/KotctqV.png)
 
 ### remove
 
-![](https://imgur.com/4NVdniz.png)
+![](https://imgur.com/zPUCDvk.png)
 
 ### show
 
-![](https://imgur.com/ycu6G3o.png)
+![](https://imgur.com/PCLMb5L.png)
 
 There is one more interesting function that is `gen_hash()` used in `add` function.
 
-![](https://imgur.com/7nO0FGU.png)
+![](https://imgur.com/DEHTmyU.png)
 
 This function seems pretty good isn't it. Now lets look at the `abs8()` in gdb.
 Lets give "A" as our name and hit breakpoint at 0x138f
@@ -94,7 +94,7 @@ So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and
 
 Lets see the disassembly of `abs8()`. <br> So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction
 
-![](https://imgur.com/ogU9Cq6.png)
+![](https://imgur.com/NSmAdbH.png)
 
 So there are two bugs. 
 
