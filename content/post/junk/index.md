@@ -8,4 +8,4 @@ image:
   focal_point: Smart
   preview_only: false
 ---
-AAAA
+![](https://imgur.com/l3XtFs8.png)
