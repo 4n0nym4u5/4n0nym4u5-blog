@@ -11,3 +11,5 @@ image:
 # CTF STATUS
 
 | CTF Name   | Challenge Name | Start Time | End Time | Solved      | Exploit   
+| :------: | :----: | :-----------------: | :-----------------: | :-: | :------------------------------------------------------: |
+| testctf1 | chall1 | 24/02/2022 17:51:35 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
