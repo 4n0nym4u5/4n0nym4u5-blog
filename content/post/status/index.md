@@ -12,4 +12,4 @@ image:
 
 | CTF Name   | Challenge Name | Start Time | End Time | Solved      | Exploit   
 | :------: | :----: | :-----------------: | :-----------------: | :-: | :------------------------------------------------------: |
-| testctf1 | chall1 | 24/02/2022 17:51:35 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| testctf1 | chall1 | 24/02/2022 17:51:35 | 24/02/2022 18:00:03 | 👍  | https://gist.github.com/cfed38fb1685d662ea21f388aa830432 |
