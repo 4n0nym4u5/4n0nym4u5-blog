@@ -14,3 +14,4 @@ image:
 | testctf | chall2 | 24/02/2022 18:17:03 | 24/02/2022 18:17:19 | 👍  |  -  |
 | MetaCTF21 | hookless | 24/02/2022 20:08:28 | 25/02/2022 18:42:03 | 👍  | https://gist.github.com/91004dc836ba673c9f3e6f32c793b211 |
 | susctf | rain | 26/02/2022 09:51:33 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| foobar22 | warmup | 04/03/2022 20:01:42 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
