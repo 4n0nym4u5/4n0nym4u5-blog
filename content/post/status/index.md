@@ -15,3 +15,4 @@ image:
 | MetaCTF21 | hookless | 24/02/2022 20:08:28 | 25/02/2022 18:42:03 | 👍  | https://gist.github.com/91004dc836ba673c9f3e6f32c793b211 |
 | susctf | rain | 26/02/2022 09:51:33 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | foobar22 | warmup | 04/03/2022 20:01:42 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| foobar22 | baby_ssid | 04/03/2022 21:10:29 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
