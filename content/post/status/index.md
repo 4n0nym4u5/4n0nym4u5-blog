@@ -16,3 +16,4 @@ image:
 | susctf | rain | 26/02/2022 09:51:33 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | foobar22 | warmup | 04/03/2022 20:01:42 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | foobar22 | warmup | 04/03/2022 20:01:42 | 05/03/2022 08:27:33 | 👍  |  -  |
+| foobar22 | One_Punch | 05/03/2022 08:31:24 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
