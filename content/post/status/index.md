@@ -17,3 +17,4 @@ image:
 | foobar22 | warmup | 04/03/2022 20:01:42 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | foobar22 | warmup | 04/03/2022 20:01:42 | 05/03/2022 08:27:33 | 👍  |  -  |
 | foobar22 | One_Punch | 05/03/2022 08:31:24 | 05/03/2022 15:30:15 | 👍  |  -  |
+| foobar22 | DeathNote | 05/03/2022 15:31:58 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
