@@ -19,4 +19,4 @@ image:
 | foobar22  | One_Punch      | 05/03/2022 08:31:24 | 05/03/2022 15:30:15 | 👍     | \-                                                       |
 | foobar22  | DeathNote      | 05/03/2022 21:10:29 | 05/03/2022 08:27:15 | 👍     | \-                                                       || pragyan22 | pwn | 05/03/2022 18:16:04 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | pragyan22 | perfect_puzzle | 06/03/2022 09:24:27 | 06/03/2022 11:18:32 | 👍  |  -  |
-| pragyan22 | database | 06/03/2022 11:20:11 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| pragyan22 | database | 06/03/2022 11:20:11 | 06/03/2022 17:35:09 | 👍  |  -  |
