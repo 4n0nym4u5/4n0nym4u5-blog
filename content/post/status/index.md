@@ -21,3 +21,4 @@ image:
 | pragyan22 | perfect_puzzle | 06/03/2022 09:24:27 | 06/03/2022 11:18:32 | 👍  |  -  |
 | pragyan22 | TBBT | 06/03/2022 20:43:50 | 06/03/2022 22:19:18 | 👍  |  -  |
 | crew22 | release | 15/04/2022 22:42:03 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| crew22 | wiznu | 15/04/2022 23:01:07 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
