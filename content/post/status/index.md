@@ -20,3 +20,4 @@ image:
 | foobar22  | DeathNote      | 05/03/2022 21:10:29 | 05/03/2022 08:27:15 | 👍     | \-                                                       || pragyan22 | pwn | 05/03/2022 18:16:04 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | pragyan22 | perfect_puzzle | 06/03/2022 09:24:27 | 06/03/2022 11:18:32 | 👍  |  -  |
 | pragyan22 | TBBT | 06/03/2022 20:43:50 | 06/03/2022 22:19:18 | 👍  |  -  |
+| crew22 | release | 15/04/2022 22:42:03 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
