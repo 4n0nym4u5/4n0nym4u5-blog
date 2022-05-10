@@ -385,3 +385,30 @@ edit(A, "/bin/sh\x00")
 delete(A)
 io.interactive()
 ```
+
+- - -
+
+> # Secure Horoscope
+
+- - -
+
+> **Description** : Our horoscope developers have pivoted to a more security-focused approach to predicting the future. You won’t find breaking into this one quite so easy!
+> **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary](https://cdn.discordapp.com/attachments/808487148332122144/972246561272770640/secureHoroscope)
+> **Docker File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[](https://cdn.discordapp.com/attachments/808487148332122144/972246561272770640/secureHoroscope)[DockerFile](https://cdn.discordapp.com/attachments/808487148332122144/972246546773065828/Dockerfile)
+> **Solves** : 53
+> **Points** : 250
+>
+> # Checksec
+
+- - -
+
+```yaml
+    RELRO:    Partial RELRO
+    Stack:    No canary found
+    NX:       NX enabled
+    PIE:      No PIE (0x3ff000)
+```
+
+> # Overview
+
+- - -
