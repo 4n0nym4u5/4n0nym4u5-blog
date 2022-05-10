@@ -291,7 +291,7 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
   ```
 
 <span style="color:red">
-This is the \*worst\* way of creating a heap challenge</span>. 
+This is the \\*worst\\* way of creating a heap challenge</span>. 
 
 The author `green beans` just why would did you keep all the code in main function. The decompiled code looks ugly af. And then comes those `fflush` function. 
 
@@ -412,3 +412,7 @@ io.interactive()
 > # Overview
 
 - - -
+
+![](https://i.imgur.com/qOB9Hom.png)
+
+![](https://i.imgur.com/iGJLhst.png)
