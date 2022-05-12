@@ -27,9 +27,8 @@ image:
 - - -
 
 > **Description** : Darn, these oil spills are going crazy nowadays. It looks like there's a little bit more than oil coming out of this program though... <br>
-> **Challenge File** : [chall](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)
-> **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)
-> **Docker File** : [Dockerfile] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972245690707214346/Dockerfile)
+> **Challenge File** : [chall](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill) <br>
+> **Docker File** : [Dockerfile](https://cdn.discordapp.com/attachments/808487148332122144/972245690707214346/Dockerfile) <br>
 > **Solves** : 73 <br>
 > **Points** : 200 <br>
 
@@ -116,8 +115,7 @@ io.interactive()
 - - -
 
 > **Description** : This program will predict your future! <br>
-> **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)
-> **Docker File** : [Dockerfile] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972245690707214346/Dockerfile)
+> **Challenge File** : [chall](https://cdn.discordapp.com/attachments/808487148332122144/972246124742180924/horoscope) <br>
 > **Solves** : 125 <br>
 > **Points** : 100 <br>
 
@@ -200,11 +198,11 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
   - - -
 
   > **Description** : I’m awfully hungry, with all these options to choose from, what should I order? <br>
-  > **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)\[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972248049038544926/BreakfastMenu)
-  > **Docker File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)\[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972248478430404608/Dockerfile)
+  > **Challenge File** : [chall](https://cdn.discordapp.com/attachments/808487148332122144/972248049038544926/BreakfastMenu) <br>
+  > **Docker File** : [DockerFile](https://cdn.discordapp.com/attachments/808487148332122144/972248478430404608/Dockerfile) <br>
   > **Solves** : 32 <br>
   > **Points** : 250 <br>
-  >
+ 
   > # Checksec
 
   - - -
@@ -293,7 +291,7 @@ Here the `temp` is just a global variable and it is initially 0 when the binary 
   ```
 
 <span style="color:red">
-This is the \\\*worst\\\* way of creating a heap challenge</span>. 
+This is the <b>worst</b> way of creating a heap challenge</span>. 
 
 The author `green beans` just why would did you keep all the code in main function. The decompiled code looks ugly af. And then comes those `fflush` function. 
 
@@ -394,12 +392,12 @@ io.interactive()
 
 - - -
 
-> **Description** : Our horoscope developers have pivoted to a more security-focused approach to predicting the future. You won’t find breaking into this one quite so easy!
-> **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary](https://cdn.discordapp.com/attachments/808487148332122144/972246561272770640/secureHoroscope)
-> **Docker File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[](https://cdn.discordapp.com/attachments/808487148332122144/972246561272770640/secureHoroscope)[DockerFile](https://cdn.discordapp.com/attachments/808487148332122144/972246546773065828/Dockerfile)
-> **Solves** : 53
-> **Points** : 250
->
+> **Description** : Our horoscope developers have pivoted to a more security-focused approach to predicting the future. You won’t find breaking into this one quite so easy! <br>
+> **Challenge File** : [binary](https://cdn.discordapp.com/attachments/808487148332122144/972246561272770640/secureHoroscope) <br>
+> **Docker File** : [DockerFile](https://cdn.discordapp.com/attachments/808487148332122144/972246546773065828/Dockerfile) <br>
+> **Solves** : 53 <br>
+> **Points** : 250 <br>
+
 > # Checksec
 
 - - -
