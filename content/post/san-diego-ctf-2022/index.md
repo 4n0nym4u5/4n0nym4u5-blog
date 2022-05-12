@@ -27,6 +27,7 @@ image:
 - - -
 
 > **Description** : Darn, these oil spills are going crazy nowadays. It looks like there's a little bit more than oil coming out of this program though... <br>
+> **Challenge File** : [chall](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)
 > **Challenge File** : [](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)[binary] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)
 > **Docker File** : [Dockerfile] <br>(https://cdn.discordapp.com/attachments/808487148332122144/972245690707214346/Dockerfile)
 > **Solves** : 73 <br>
