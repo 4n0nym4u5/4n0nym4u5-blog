@@ -28,3 +28,4 @@ image:
 | boilers22 | gambler_overflow | 23/04/2022 07:55:04 | 23/04/2022 08:24:23 | 👍  |  -  |
 | Unnamed: 0 | babyheap | 14/05/2022 18:37:18 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 18:43:05 | 14/05/2022 18:54:26 | 👍  |  -  |
+| htb_cyber_apocalypse | challenge | 14/05/2022 18:55:31 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
