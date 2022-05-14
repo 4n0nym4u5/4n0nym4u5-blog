@@ -29,4 +29,4 @@ image:
 | Unnamed: 0 | babyheap | 14/05/2022 18:37:18 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 18:43:05 | 14/05/2022 18:54:26 | 👍  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 18:55:31 | 14/05/2022 19:04:45 | 👍  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 19:05:43 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| htb_cyber_apocalypse | challenge | 14/05/2022 19:05:43 | 14/05/2022 19:24:30 | 👍  |  -  |
