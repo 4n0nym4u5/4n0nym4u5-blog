@@ -34,3 +34,4 @@ image:
 | htb_cyber_apocalypse | fleet_management_chall | 14/05/2022 19:27:11 | 14/05/2022 21:30:53 | 👍  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 21:32:58 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 21:34:44 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| htb_cyber_apocalypse | challenge | 14/05/2022 21:34:55 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
