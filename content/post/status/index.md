@@ -30,3 +30,4 @@ image:
 | htb_cyber_apocalypse | challenge | 14/05/2022 18:43:05 | 14/05/2022 18:54:26 | 👍  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 18:55:31 | 14/05/2022 19:04:45 | 👍  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 19:05:43 | 14/05/2022 19:24:30 | 👍  |  -  |
+| htb_cyber_apocalypse | vault_breaker | 14/05/2022 19:25:16 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
