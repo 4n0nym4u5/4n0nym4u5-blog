@@ -36,3 +36,4 @@ image:
 | htb_cyber_apocalypse | challenge | 14/05/2022 21:34:44 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 14/05/2022 21:34:55 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:06:35 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| htb_cyber_apocalypse | challenge | 16/05/2022 16:16:14 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
