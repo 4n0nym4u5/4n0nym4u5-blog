@@ -38,4 +38,4 @@ image:
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:06:35 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:16:14 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:16:39 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| 247 | HiddenFlagFunction | 18/05/2022 14:34:22 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| 247 | HiddenFlagFunction | 18/05/2022 14:34:22 | 18/05/2022 14:37:02 | 👍  | Unnamed: 5 |
