@@ -39,3 +39,4 @@ image:
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:16:14 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:16:39 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | 247 | HiddenFlagFunction | 18/05/2022 14:34:22 | 18/05/2022 14:37:02 | 👍  | https://gist.github.com/579b3e1327cdac1c5bd3a2ac7e3afee0 |
+| 247 | HiddenFlagFunctionParameters | 18/05/2022 15:06:13 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
