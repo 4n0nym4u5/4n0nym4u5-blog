@@ -43,3 +43,4 @@ image:
 | 247 | AnExecutableStack | 18/05/2022 15:51:44 | 18/05/2022 15:53:43 | 👍  | https://gist.github.com/4ed94c59f7b7fb4064e6518484b781ba |
 | 247 | ANonExecutableStack | 18/05/2022 15:55:20 | 18/05/2022 16:03:29 | 👍  | https://gist.github.com/442c8b83187f5a9f379a098f01489c47 |
 | 247 | StackMyPivot | 18/05/2022 16:08:16 | 18/05/2022 16:37:32 | 👍  | https://gist.github.com/7e86c4a26cd96b1f4afd815f3b7c3009 |
+| 247 | CookieMonster | 18/05/2022 17:16:02 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
