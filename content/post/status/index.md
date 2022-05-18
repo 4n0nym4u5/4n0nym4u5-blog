@@ -40,4 +40,4 @@ image:
 | htb_cyber_apocalypse | challenge | 16/05/2022 16:16:39 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | 247 | HiddenFlagFunction | 18/05/2022 14:34:22 | 18/05/2022 14:37:02 | 👍  | https://gist.github.com/579b3e1327cdac1c5bd3a2ac7e3afee0 |
 | 247 | HeapedNotes | 18/05/2022 15:45:53 | 18/05/2022 15:38:57 | 👍  | https://gist.github.com/dbaded221af935dce6653e9f8a88c44f |
-| 247 | AnExecutableStack | 18/05/2022 15:51:44 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+| 247 | AnExecutableStack | 18/05/2022 15:51:44 | 18/05/2022 15:53:43 | 👍  | https://gist.github.com/4ed94c59f7b7fb4064e6518484b781ba |
