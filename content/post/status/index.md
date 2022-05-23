@@ -24,26 +24,11 @@ image:
 | crew22 | wiznu | 15/04/2022 23:01:07 | 15/04/2022 23:17:04 | 👍  |  -  |
 | crew22 | ubume | 15/04/2022 23:18:56 | 15/04/2022 23:34:23 | 👍  |  -  |
 | boilers22 | gambler_baby | 23/04/2022 07:31:07 | 23/04/2022 07:54:09 | 👍  |  -  |
-| boilers22 | gambler_overflow | 23/04/2022 07:54:44 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | boilers22 | gambler_overflow | 23/04/2022 07:55:04 | 23/04/2022 08:24:23 | 👍  |  -  |
-| Unnamed: 0 | babyheap | 14/05/2022 18:37:18 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 18:43:05 | 14/05/2022 18:54:26 | 👍  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 18:55:31 | 14/05/2022 19:04:45 | 👍  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 19:05:43 | 14/05/2022 19:24:30 | 👍  |  -  |
-| htb_cyber_apocalypse | vault_breaker | 14/05/2022 19:25:16 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | fleet_management_chall | 14/05/2022 19:27:11 | 14/05/2022 21:30:53 | 👍  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 21:32:58 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 21:34:44 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | challenge | 14/05/2022 21:34:55 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | challenge | 16/05/2022 16:06:35 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | challenge | 16/05/2022 16:16:14 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| htb_cyber_apocalypse | challenge | 16/05/2022 16:16:39 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
 | 247 | HiddenFlagFunction | 18/05/2022 14:34:22 | 18/05/2022 14:37:02 | 👍  | https://gist.github.com/579b3e1327cdac1c5bd3a2ac7e3afee0 |
 | 247 | HeapedNotes | 18/05/2022 15:45:53 | 18/05/2022 15:38:57 | 👍  | https://gist.github.com/dbaded221af935dce6653e9f8a88c44f |
 | 247 | AnExecutableStack | 18/05/2022 15:51:44 | 18/05/2022 15:53:43 | 👍  | https://gist.github.com/4ed94c59f7b7fb4064e6518484b781ba |
 | 247 | ANonExecutableStack | 18/05/2022 15:55:20 | 18/05/2022 16:03:29 | 👍  | https://gist.github.com/442c8b83187f5a9f379a098f01489c47 |
 | 247 | StackMyPivot | 18/05/2022 16:08:16 | 18/05/2022 16:37:32 | 👍  | https://gist.github.com/7e86c4a26cd96b1f4afd815f3b7c3009 |
 | 247 | CookieMonster | 18/05/2022 17:16:02 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| 247 | CookieMonster | 18/05/2022 17:26:37 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| hardrocks | pwn1 | 19/05/2022 17:38:02 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
-| hardrocks | pwn1 | 21/05/2022 09:57:09 | dd/mm/yyyy hh:mm:ss | 👎  |  -  |
+
