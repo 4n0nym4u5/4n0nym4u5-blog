@@ -4,7 +4,7 @@
  * A few of these are not used yet, and are subject to change, example of this is Author.
  */
 export const SITE_METADATA = {
-  theme: "system", // Options: system, light, dark
+  theme: "dark", // Options: system, light, dark
   siteUrl: "https://tasb.yon.fun/",
   siteRepo: "https://github.com/wanoo21/tailwind-astro-starting-blog",
   robots: "index, follow", // Options: index, noindex, follow, nofollow
