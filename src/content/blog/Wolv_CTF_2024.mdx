@@ -10,14 +10,12 @@ tags:
 - "rop"
 - "format-string"
 ---
+import Figure from "@/components/Figure.astro"
+import scoreboard from "@/assets/scoreboard_wolv.jpeg"
+import CScript_bug from "@/assets/CScript_bug.png"
 
 Our team ranked #1st place in this CTF. 
-<img 
-  alt="WolvCTF 2024 Scooreboard" 
-  src="/src/assets/scoreboard_wolv.jpeg" 
-  width="400" 
-  height="400" 
-/>
+<Figure src={scoreboard} alt="" width="400" height="400">Wolv CTF 2024 scoreboard</Figure>
 And yes i designed this scoreboard :joy: 
 
 ---
@@ -396,10 +394,7 @@ file_content = b"Print(a)"
 sla(b'>>', file_content)
 ```
 The binary crashes here with `0x4141414141414141` in RAX.
-<img 
-  alt="gen_hash()" 
-  src="/src/assets/CScript_bug.png" 
-/>
+<Figure src={CScript_bug} alt="">CScript function decompilation.</Figure>
 
 So the decompilation says that if we have a valid `heap_obj->func_ptr` then we proceed to call that. So i used this for the exploitation since it also take a argument from the heap_obj. We can now craft a fake heap_obj which func_ptr points to a pointer to `xchg eax, esp; ret` gadget and argument to the address of our ROP chain. The address of RDI and RAX is same so we can use eax as well instead of edi for stack pivot.
 

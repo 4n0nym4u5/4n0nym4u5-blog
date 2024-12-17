@@ -9,6 +9,11 @@ tags:
 - "heap"
 - "use-after-free"
 ---
+
+import Figure from "@/components/Figure.astro"
+import gen_hash from "@/assets/gen_hash.png"
+import gen_hash_poc from "@/assets/gen_hash_poc.png"
+
 ## Checksec
 
 <pre>
@@ -160,26 +165,10 @@ int gen_hash(note *note, int size)
 
 This function seems pretty good isn't it. Now lets look at the `abs8()` in gdb.
 Lets give "A" as our name and hit breakpoint at 0x138f
-<div className="flex items-center justify-center rounded-lg">
-    <img 
-    alt="gen_hash()" 
-    src="/src/assets/gen_hash.png" 
-    width="400" 
-    height="400" 
-    />
-</div>
-
+<Figure src={gen_hash} alt="" width="400" height="400"></Figure>
 
 So everything is fine here right?. I bruteforced all values from 0x0 to 0xff and checked the returned value from the `gen_hash` function and saw something weird. Now lets give our `note->name` as "\x80"
-
-<div className="flex items-center justify-center rounded-lg">
-    <img 
-    alt="gen_hash() bug poc" 
-    src="/src/assets/gen_hash_poc.png" 
-    width="400" 
-    height="400" 
-    />
-</div>
+<Figure src={gen_hash_poc} alt="" width="400" height="400">gen_hash Integer underflow Proof-of-Concept</Figure>
 
 Lets see the disassembly of `abs8()`. 
  So `al` is being right shifted by 7 and since `al` is being used instead of `eax` there is a signedness issue here. Lets follow the operations after the `sar` instruction

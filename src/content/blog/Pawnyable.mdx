@@ -12,6 +12,10 @@ tags:
 - "rop"
 - "heap"
 ---
+import Figure from "@/components/Figure.astro"
+import lk01 from "@/assets/lk01.png"
+import lk02 from "@/assets/lk02.png"
+import lk03 from "@/assets/lk03.png"
 
 # Introduction
 
@@ -296,10 +300,7 @@ int main()
     return 0;
 }
 ```
-<img 
-  alt="Holstein 2" 
-  src="/src/assets/lk01.png" 
-/>
+<Figure src={lk01} alt="">Holstein 1</Figure>
 
 ## Holstein 2
 
@@ -659,10 +660,7 @@ int main()
     return 0;
 }
 ```
-<img 
-  alt="Holstein 2" 
-  src="/src/assets/lk02.png" 
-/>
+<Figure src={lk02} alt="">Holstein 2</Figure>
 
 ## Holstein 3
 
@@ -1011,7 +1009,4 @@ int main()
     return 0;
 }
 ```
-<img 
-  alt="Holstein 3" 
-  src="/src/assets/lk03.png" 
-/>
+<Figure src={lk03} alt="">Holstein 3</Figure>
