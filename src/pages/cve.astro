@@ -1,0 +1,84 @@
+---
+import Card from "@/components/Card.astro";
+import { useTranslations } from "@/i18n";
+import RootLayout from "@/layouts/RootLayout.astro";
+
+const t = useTranslations();
+
+const projectsData = [
+  {
+    title: "libsndfile | CVE-2024-50612",
+    description: `libsndfile through 1.2.2 has an ogg_vorbis.c vorbis_analysis_wrote out-of-bounds read.`,
+    imgSrc:
+      "",
+    href: "https://nvd.nist.gov/vuln/detail/CVE-2024-50612",
+  },
+  {
+    title: "libsndfile | CVE-2024-50613",
+    description: `libsndfile through 1.2.2 has a reachable assertion, that may lead to application exit, in mpeg_l3_encode.c mpeg_l3_encoder_close.`,
+    imgSrc:
+      "",
+    href: "https://nvd.nist.gov/vuln/detail/CVE-2024-50613",
+  },
+  {
+    title: "tinyxml2 | CVE-2024-50614",
+    description: `TinyXML2 through 10.0.0 has a reachable assertion for UINT_MAX/16, that may lead to application exit, in tinyxml2.cpp XMLUtil::GetCharacterRef.`,
+    imgSrc:
+      "",
+    href: "https://nvd.nist.gov/vuln/detail/CVE-2024-50614",
+  },
+  {
+    title: "tinyxml2 | CVE-2024-50615",
+    description: `TinyXML2 through 10.0.0 has a reachable assertion for UINT_MAX/digit, that may lead to application exit, in tinyxml2.cpp XMLUtil::GetCharacterRef.`,
+    imgSrc:
+      "",
+    href: "https://nvd.nist.gov/vuln/detail/CVE-2024-50615",
+  },
+  {
+    title: "libheif Heap-Buffer-Overflow",
+    description: `libheif latest release 1.19.5 was discovered to contain a heap buffer overflow vulnerability due to a signed integer overflow when calculating stride[targetChannel] * (alreadyRead[i] + j) in heifio/decoder_jpeg.cc:425 loadJPEG() when parsing a specially crafted JPEG image file. This vulnerability can lead to Denial of Service of possible code execution`,
+    imgSrc:
+      "",
+    href: "https://github.com/strukturag/libheif/issues/1419",
+  },
+  {
+    title: "Videolan x265 Integer Overflow",
+    description: `The latest release of x265 library version 4.1 is discovered to contain a signed integer overflow vulnerability when trying to encode a specially crafted HEVC file. The vulnerability exists in the determineLevel() function in x265/source/encoder/level.cpp:117 when calculating the result of uint32_t lumaSamples = param.sourceWidth * param.sourceHeight, This operation leads to an overflow in lumaSamples which eventually leads the program to cause a memory exhaustion leading to Out of Memory DoS.`,
+    imgSrc:
+      "",
+    href: "https://bitbucket.org/multicoreware/x265_git/issues/970/integer-overflow-in-determinelevel-leading",
+  },
+];
+---
+
+<RootLayout
+  title={t("pages.cve.title")}
+  description={t("pages.cve.description")}
+>
+  <div class="divide-y divide-gray-200 dark:divide-gray-700">
+    <div class="space-y-2 pb-8 pt-6 md:space-y-5">
+      <h1
+        class="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14"
+      >
+        {t("CVE")}
+      </h1>
+      <p class="text-lg leading-7 text-gray-500 dark:text-gray-400">
+        {t("The listed CVE's are discovered and reported by me")}
+      </p>
+    </div>
+    <div class="container py-12">
+      <div class="-m-4 flex flex-wrap">
+        {
+          projectsData.map((d) => (
+            <Card
+              title={d.title}
+              description={d.description}
+              imgSrc={d.imgSrc}
+              href={d.href}
+            />
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</RootLayout>
