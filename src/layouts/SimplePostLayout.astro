@@ -59,13 +59,13 @@ const { Content, headings } = await post.render();
           </dl>
           <PageTitle>{post.data.title}</PageTitle>
         </div>
-        {
+        <!-- {
           post.data.cover && POST_METADATA.showCover && (
             <div class="space-y-1 pb-10 text-center dark:border-gray-700">
               <PostCover {post} />
             </div>
           )
-        }
+        } -->
         {
           POST_METADATA.showSummary && (
             <div class="pb-10 text-center border-b border-gray-200">
