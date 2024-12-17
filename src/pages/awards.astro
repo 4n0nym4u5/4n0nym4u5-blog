@@ -1,0 +1,64 @@
+---
+import Card from "@/components/Card.astro";
+import { useTranslations } from "@/i18n";
+import RootLayout from "@/layouts/RootLayout.astro";
+
+const t = useTranslations();
+
+const projectsData = [
+  {
+    title: "SAS CTF 2024 2nd place 🥈",
+    imgSrc:
+      "/public/assets/awards/sas.jpeg",
+  },
+  {
+    title: "C2C CTF 2023 3rd place 🥉",
+    imgSrc:
+      "/public/assets/awards/c2c.jpg",
+  },
+  {
+    title: "DSCI EY CTF 2023 1st place 🥇",
+    imgSrc:
+      "/public/assets/awards/dsciey.jpeg",
+  },
+  {
+    title: "Embedded Security CTF 2022 2nd place 🥈",
+    imgSrc:
+      "/public/assets/awards/embedded.png",
+  },
+];
+---
+
+
+
+<RootLayout
+  title={t("pages.cve.title")}
+  description={t("pages.cve.description")}
+>
+  <div class="divide-y divide-gray-200 dark:divide-gray-700">
+    <div class="space-y-2 pb-8 pt-6 md:space-y-5">
+      <h1
+        class="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14"
+      >
+        {t("Awards")}
+      </h1>
+      <p class="text-lg leading-7 text-gray-500 dark:text-gray-400">
+        {t("Some of the awards I have received")}
+      </p>
+    </div>
+    <div class="container py-12">
+      <div class="-m-4 flex flex-wrap">
+        {
+          projectsData.map((d) => (
+            <Card
+              title={d.title}
+              description={d.description}
+              imgSrc={d.imgSrc}
+              href={d.href}
+            />
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</RootLayout>

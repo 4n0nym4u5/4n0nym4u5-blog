@@ -103,6 +103,7 @@ export const NAVIGATION = [
   { href: "/cve", title: "CVE" },
   { href: "/blog", title: "nav.blog" },
   { href: "/projects", title: "nav.projects" },
+  { href: "/awards", title: "Awards" },
   { href: "/about", title: "nav.about" },
 ] as const;
 
